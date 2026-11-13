@@ -203,6 +203,7 @@ textarea{width:100%;resize:vertical;min-height:72px}
 @media (prefers-color-scheme:dark){.hero{background:#14213A;color:var(--ink)}}
 .hero p{opacity:.85}
 .hero .btn{background:#fff;color:#14336B}
+.stack>input,.stack-s>input{flex:none;width:100%}
 </style>
 </head>
 <body>
@@ -477,7 +478,7 @@ const SN = {AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',
 const TERR = {AS:1, DC:1, GU:1, MP:1, VI:1, PR:1};
 const PN = {D:'Democratic', R:'Republican', I:'Independent'};
 const SAID = {'Jack Reed':senSaid(SRC.reedAwb), 'Sheldon Whitehouse':senSaid(SRC.whAwb), 'Gabe Amo':amoSaid, 'Seth Magaziner':magSaid};
-let ROLLS = [], SPLIT = {};
+let ROLLS = [], SPLIT = {}, MONEY = {};
 function countVote(rid, pa, c){ const s = SPLIT[rid] = SPLIT[rid] || {}, k = pa === 'D' || pa === 'R' ? pa : 'I'; (s[k] = s[k] || {Y:0, N:0})[c]++; }
 function build(ch, casts, name, pa){
   const ev = [], ex = EXCLUDE[name] || {};
@@ -513,7 +514,7 @@ function finishProfiles(){
 loadEmbedded();
 
 /* ---------- State ---------- */
-const state = {ans:{}, imp:{}, mode:'quick', idx:0, sel:null, filter:'All', q:'', cz:{k:1, x:0, y:0}, pick:null};
+const state = {ans:{}, imp:{}, mode:'quick', idx:0, sel:null, filter:'All', q:'', cz:{k:1, x:0, y:0}, pick:null, cmp:null, cq:''};
 try { const s = JSON.parse(localStorage.getItem('polidex-v01') || 'null'); if (s) Object.assign(state, s, {sel:null, filter:'All', cz:{k:1, x:0, y:0}, pick:null}); } catch (e) {}
 function save(){
   state.ts = Date.now();
@@ -638,6 +639,50 @@ function followBtn(p){
   const on = FOLLOWS.has(p.id);
   return '<button class="btn' + (on ? ' ghost' : '') + '" data-follow="' + p.id + '" style="padding:6px 16px;font-size:13px">' + (on ? 'Following' : 'Follow') + '</button>';
 }
+const SUB = t => '<br><span class="muted small">' + t + '</span>';
+function votedLabel(o){
+  const vs = o.items.filter(e => e.k === 'vote' && e.a !== null), n = vs.length, pos = vs.filter(e => e.a > 0).length, neg = vs.filter(e => e.a < 0).length;
+  if (pos && neg) return 'Mixed votes' + SUB(pos + ' for, ' + neg + ' against');
+  const top = Math.max.apply(null, vs.map(e => Math.abs(e.a))), kind = top >= 3 ? 'direct' : top === 2 ? 'related' : 'loosely related';
+  return (pos ? 'Voted for this' : 'Voted against this') + SUB(n + ' ' + kind + ' vote' + (n === 1 ? '' : 's'));
+}
+function saidLabel(o){
+  const ss = o.items.filter(e => e.k === 'said'), v = o.saidV;
+  if (ss.some(e => e.text === 'Self-reported quiz answer') || !ss.every(e => e.src)) return scaleLabel(v);
+  const bills = ss.filter(e => /^(Sponsored or cosponsored|Cosponsored)/.test(e.text)).length;
+  if (bills === ss.length) return (v > 0 ? 'Backed a bill for this' : 'Backed a bill against this') + SUB(bills + ' bill' + (bills === 1 ? '' : 's') + ' sponsored or cosponsored');
+  return (v >= 2.5 ? 'Clearly for this' : v >= 1 ? 'For this' : v > -1 ? 'Mixed or qualified' : v > -2.5 ? 'Against this' : 'Clearly against this') + SUB(ss.length + ' public statement' + (ss.length === 1 ? '' : 's') + (bills ? ' or bills' : ''));
+}
+function confPill(o){
+  const nv = o.items.filter(e => e.k === 'vote' && e.a !== null).length, ns = o.items.filter(e => e.k === 'said').length;
+  return '<span class="pill">' + (nv + ns <= 1 ? 'Thin evidence' : nv && ns ? 'Votes and words' : nv ? nv + ' votes' : ns + ' statements') + '</span>';
+}
+const usd = n => n >= 1e6 ? '$' + (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + 'M' : n >= 1e3 ? '$' + Math.round(n / 1e3) + 'K' : '$' + Math.round(n);
+function moneyHTML(p){
+  if (p.fictional || !LIVE) return '';
+  const m = MONEY[p.id];
+  if (!m) return '<div class="card stack-s"><h2>Money</h2><p class="muted small">Campaign finance totals for this member have not loaded yet.</p></div>';
+  const pct = m.rec ? Math.round(100 * m.pac / m.rec) : 0;
+  return '<div class="card stack-s"><h2>Money</h2><p class="muted small">Campaign committee totals for the ' + (m.cycle - 1) + ' to ' + m.cycle + ' election cycle, reported through ' + esc(m.thru || 'the latest filing') + '.</p>' +
+    '<div class="scores"><div class="score"><b>' + usd(m.rec) + '</b><span>Raised</span></div><div class="score"><b>' + pct + '%</b><span>From PACs and other committees (' + usd(m.pac) + ')</span></div><div class="score"><b>' + usd(m.cash) + '</b><span>Cash on hand</span></div></div>' +
+    '<p class="small">Itemized donations from individuals (over $200 each): <b>' + usd(m.ind) + '</b></p>' +
+    '<p class="small muted">Source: <a href="https://www.fec.gov/data/candidate/' + esc(m.cid) + '/?cycle=' + m.cycle + '">Federal Election Commission filings</a>. Named donors, industries and stock trades are not loaded yet.</p></div>';
+}
+const posWord = v => v >= 1.5 ? 'For' : v >= .5 ? 'Leans for' : v > -.5 ? 'Mixed' : v > -1.5 ? 'Leans against' : 'Against';
+function cmpList(p){
+  const q = (state.cq || '').trim().toLowerCase(); if (q.length < 2) return '';
+  return PROFILES.filter(x => x.id !== p.id && x.name.toLowerCase().includes(q)).slice(0, 6).map(x => '<button class="pitem" data-cmp="' + x.id + '"><span class="avatar">' + x.ini + '</span><span><span class="name">' + x.name + '</span><br><span class="muted small">' + x.office + '</span></span><span class="muted">&rsaquo;</span></button>').join('') || '<p class="muted small">No matches.</p>';
+}
+function compareCard(p){
+  const b = state.cmp && state.cmp !== p.id ? PROFILES.find(x => x.id === state.cmp) : null, head = '<div class="card stack-s"><h2>Compare</h2>';
+  if (!b) return head + '<p class="muted small">Put ' + p.name + ' side by side with anyone else.</p><input type="search" id="cmp-q" placeholder="Search a name" aria-label="Search a name to compare" value="' + esc(state.cq || '') + '"><div id="cmp-list" class="plist">' + cmpList(p) + '</div></div>';
+  const A = p.r.combined, B = b.r.combined, ids = Object.keys(A).filter(id => id in B).sort((x, y) => Math.abs(A[y] - B[y]) - Math.abs(A[x] - B[x]));
+  const sim = ids.length >= 3 ? Math.round(100 * ids.reduce((t, id) => t + 1 - Math.abs(A[id] - B[id]) / 6, 0) / ids.length) : null;
+  const col = x => '<div class="stack-s"><b>' + x.name + '</b>' + scoreTiles(x) + '</div>', last = x => esc(x.name.replace(/,?\s+(Jr\.?|Sr\.?|II|III|IV)$/, '').split(' ').pop());
+  return head + '<div class="spread"><p class="small">With <b>' + b.name + '</b></p><button class="btn ghost" data-cmp="" style="padding:4px 12px;font-size:12px">Change</button></div>' +
+    (sim === null ? '<p class="muted small">Not enough shared positions to compare.</p>' : '<div class="score"><b>' + sim + '%</b><span>agreement across ' + ids.length + ' shared positions</span></div>') + col(p) + col(b) +
+    ids.map(id => '<div class="ev"><p style="font-weight:500">' + BYID[id].text + '</p><div class="readings"><div class="reading"><div class="lab">' + last(p) + '</div>' + posWord(A[id]) + '</div><div class="reading"><div class="lab">' + last(b) + '</div>' + posWord(B[id]) + '</div></div>' + (Math.abs(A[id] - B[id]) >= 3 ? '<span class="pill flag" style="margin-top:6px">They differ</span>' : '') + '</div>').join('') + '</div>';
+}
 function axisLine(name, o, p, labeller){
   if (!o.n) return '<div class="spread"><span>' + name + '</span><span class="muted small">Not enough data</span></div>';
   const prelim = p && p.preliminary;
@@ -701,8 +746,8 @@ const views = {
       const votes = o.items.filter(e => e.k === 'vote').map(e => '<div class="vote"><b>' + (e.cast === 'Cosponsored' ? 'Cosponsored' : 'Voted ' + e.cast + '</b> on') + (e.cast === 'Cosponsored' ? '</b>' : '') + ' <span class="mono">' + e.bill + '</span> ' + e.title + '<br><span class="muted">' + e.date + (e.tally && e.tally !== 'fictional' ? ' &middot; tally ' + e.tally : '') + ' &middot; ' + e.note + (e.src ? ' &middot; <a href="' + e.src[1] + '">' + e.src[0] + '</a>' : '') + '</span></div>').join('');
       const saids = o.items.filter(e => e.k === 'said' && e.text !== 'Self-reported quiz answer').map(e => '<div class="vote"><b>Said</b> (' + e.date + '): ' + e.text + (e.src ? ' <span class="muted">&middot; <a href="' + e.src[1] + '">' + e.src[0] + '</a></span>' : '') + '</div>').join('');
       const h = p.history && p.history[id] ? '<div class="hist"><b>Position updated</b>' + p.history[id].map(x => '<br><span class="mono">' + x.date + '</span> ' + scaleLabel(x.a) + ': ' + x.text).join('') + '</div>' : '';
-      return '<div class="ev"><div class="spread"><span class="pill">' + st.cat + '</span>' + (o.flag ? '<span class="pill flag">Said vs. Voted differ</span>' : '') + '</div><p style="margin-top:6px;font-weight:500">' + st.text + '</p>' +
-        '<div class="readings"><div class="reading"><div class="lab">Said</div>' + (o.saidV === null ? '<span class="muted small">Not collected yet</span>' : scaleLabel(o.saidV)) + '</div><div class="reading"><div class="lab">Voted</div>' + (o.votedV === null ? '<span class="muted small">' + (o.items.some(e => e.k === 'vote') ? 'Excluded, see note' : 'No vote on record') + '</span>' : scaleLabel(o.votedV)) + '</div></div>' +
+      return '<div class="ev"><div class="spread"><span class="pill">' + st.cat + '</span>' + '<span class="row" style="gap:6px">' + confPill(o) + (o.flag ? '<span class="pill flag">Said vs. Voted differ</span>' : '') + '</span></div><p style="margin-top:6px;font-weight:500">' + st.text + '</p>' +
+        '<div class="readings"><div class="reading"><div class="lab">Said</div>' + (o.saidV === null ? '<span class="muted small">Not collected yet</span>' : saidLabel(o)) + '</div><div class="reading"><div class="lab">Voted</div>' + (o.votedV === null ? '<span class="muted small">' + (o.items.some(e => e.k === 'vote') ? 'Excluded, see note' : 'No vote on record') + '</span>' : votedLabel(o)) + '</div></div>' +
         (typeof u === 'number' ? '<p class="small muted" style="margin-top:6px">Your answer: ' + scaleLabel(u) + '</p>' : '') + saids + votes + h + '</div>';
     }).join('');
     return '<div class="stack"><div><button class="btn ghost" id="back" data-open="">&lsaquo; All profiles</button></div>' +
@@ -710,6 +755,7 @@ const views = {
       '<p class="small">' + p.since + '</p><div class="row">' + (p.fictional ? '<span class="pill fic">Fictional example</span>' : '<span class="pill accent">Elected official</span>') + (flags ? '<span class="pill flag">' + flags + ' Said vs. Voted flag' + (flags === 1 ? '' : 's') + '</span>' : '') + (m.pct !== null ? '<span class="pill">Match with you: ' + m.pct + '%</span>' : '') + followBtn(p) + '</div>' +
       scoreTiles(p) + stanceTags(p) + issueBars(p) +
       (p.preliminary ? '<p class="note">Preliminary. Most statements here rest on one or two pieces of evidence. The framework asks for at least two per statement, across at least five statements on an axis, before a label is shown.</p>' : '') + '</div>' +
+      moneyHTML(p) + compareCard(p) +
       '<div class="card"><h2 style="margin-bottom:4px">Positions and evidence</h2><p class="muted small">' + ids.length + ' of 62 statements have evidence so far.</p>' + ev + '</div></div>';
   },
   feed(){
@@ -732,7 +778,7 @@ const views = {
     return '<div class="stack"><div class="stack-s"><h1>How the numbers work</h1><p class="muted">Users and politicians are measured against the same 62 statements.</p></div>' +
       '<div class="card stack-s"><h2>Scale</h2><p>Each answer runs from Strongly disagree (-3) to Strongly agree (+3). Statements where agreeing leans left are flipped, so negative always means left. An axis position is the average of answered statements times 100/3, giving -100 to +100. Not sure answers are skipped.</p></div>' +
       '<div class="card"><h2 style="margin-bottom:8px">Labels</h2><div class="tablewrap"><table><tr><th>Position</th><th>Label</th></tr>' + [['-100 to -70','Far left'],['-70 to -40','Left'],['-40 to -15','Center-left'],['-15 to +15','Center'],['+15 to +40','Center-right'],['+40 to +70','Right'],['+70 to +100','Far right']].map(r => '<tr><td class="num mono">' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</table></div></div>' +
-      '<div class="card stack-s"><h2>Politicians</h2><p>Each statement gets a Said reading (public statements, sponsored and cosponsored bills, and self-reported answers) and a Voted reading (roll-call votes). The combined reading counts votes double. A flag appears when Said and Voted differ by 3 or more points.</p><p>Direct votes count at full strength. Broad packages, procedural votes, and loosely related bills count at reduced strength, with the reason shown next to the vote.</p></div>' +
+      '<div class="card stack-s"><h2>Politicians</h2><p>Each statement gets a Said reading (public statements, sponsored and cosponsored bills, and self-reported answers) and a Voted reading (roll-call votes). The combined reading counts votes double. A flag appears when Said and Voted differ by 3 or more points. On profiles, a vote is described as voted for or voted against, with how directly the bill tested the statement. A vote alone never earns the word strongly.</p><p>Direct votes count at full strength. Broad packages, procedural votes, and loosely related bills count at reduced strength, with the reason shown next to the vote.</p></div>' +
       '<div class="card stack-s"><h2>Matching</h2><p>Your match with a profile compares only statements you both have a reading for. Each statement is weighted by the importance you gave it. At least 3 shared statements are needed.</p></div>' +
       '<div class="card stack-s"><h2>Known limits of this prototype</h2><p>Red and blue are brand colors only. They never encode party or position.</p><p>Votes are yes or no, so a record built only from votes pushes members toward the ends of the scale. Statements, sponsorships, and votes that split a party are needed to separate members of the same party.</p><p>Votes come from the Polidex database, which imports the official House Clerk and Senate roll-call feeds. ' + (LIVE ? 'This page is reading the database live: ' + LIVE.rolls + ' roll calls are mapped to statements so far, as of ' + LIVE.at + '.' : 'This page is showing a built-in snapshot taken on November 12, 2026 covering 14 mapped roll calls. When it can reach the database it switches to live data.') + ' The roster is the current membership list and does not yet reflect November 2026 election results. A vote is excluded when the member opposed a bill for reasons opposite to the statement. Only the Rhode Island profiles include quoted public statements so far. Other members have cosponsorships only. Statements come from press releases and issue pages published by each member and issue pages. Every item links to its source.</p></div>' +
       '<div class="card"><h2 style="margin-bottom:8px">All 62 statements</h2><div class="tablewrap"><table><tr><th>#</th><th>Statement</th><th>Agreeing leans</th></tr>' + ST.map(s => '<tr><td class="mono">' + s.id + '</td><td>' + s.text + '</td><td>' + ({L:'Left',R:'Right',G:'Engagement',N:'Restraint',T:'Not scored'})[s.dir] + '</td></tr>').join('') + '</table></div></div></div>';
@@ -742,7 +788,7 @@ const views = {
 
 /* ---------- Live data from the Polidex database ---------- */
 let LIVE = null, MCP = null, liveBusy = false;
-const SERVER = 'Supabase', TOOL = 'execute_sql', QUERY = {project_id:'bwvedhnxrnvkgfbzgulj', query:'select public.polidex_snapshot() as snap'};
+const SERVER = 'Supabase', TOOL = 'execute_sql', QUERY = {project_id:'bwvedhnxrnvkgfbzgulj', query:'select public.polidex_snapshot2() as snap'};
 const API = 'https://bwvedhnxrnvkgfbzgulj.supabase.co', KEY = 'sb_publishable_MPZXddCCfetDzac-UkS2VQ_sLnjRJxo';
 const BUILTIN = 'Showing the built-in snapshot from Nov 12, 2026.';
 const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
@@ -793,6 +839,7 @@ function applySnapshot(snap){
   });
   PROFILES.length = 0; out.forEach(p => PROFILES.push(p)); finishProfiles();
   ROLLS = rolls.H.concat(rolls.S);
+  MONEY = {}; (snap.money || []).forEach(r => { MONEY[r[0]] = {cycle:r[1], cid:r[2], rec:Number(r[3]) || 0, ind:Number(r[4]) || 0, pac:Number(r[5]) || 0, cash:Number(r[6]) || 0, thru:r[7]}; });
   LIVE = {at:snap.at || 'just now', rolls:snap.rolls.length, members:out.length};
   if (state.sel && !PROFILES.some(p => p.id === state.sel)) state.sel = null;
   resolveOpen();
@@ -817,7 +864,7 @@ async function loadLive(fresh){
     if (!MCP) MCP = (typeof window !== 'undefined' && window.claude && typeof window.claude.use === 'function') ? await window.claude.use('mcp') : null;
     if (!MCP){
       try {
-        const r = await fetch(API + '/rest/v1/rpc/polidex_snapshot', {method:'POST', headers:{apikey:KEY, Authorization:'Bearer ' + KEY, 'Content-Type':'application/json'}, body:'{}'});
+        const r = await fetch(API + '/rest/v1/rpc/polidex_snapshot2', {method:'POST', headers:{apikey:KEY, Authorization:'Bearer ' + KEY, 'Content-Type':'application/json'}, body:'{}'});
         if (!r.ok) throw {code:'http ' + r.status};
         const snap = findSnap(await r.json()); if (!snap) throw {code:'parse'};
         applySnapshot(snap); render();
@@ -1015,6 +1062,7 @@ function onClick(ev){
   if (t.dataset.thread){ const id = Number(t.dataset.thread); OPEN[id] = !OPEN[id]; if (OPEN[id]) loadReplies(id); else render(); return; }
   if (t.dataset.del){ SB.from('posts').delete().eq('id', Number(t.dataset.del)).then(() => { Object.keys(REPLIES).forEach(k => { REPLIES[k] = REPLIES[k].filter(x => x.id !== Number(t.dataset.del)); }); loadFeed(); }); return; }
   if (t.dataset.follow){ toggleFollow(t.dataset.follow); return; }
+  if (t.dataset.cmp !== undefined){ state.cmp = t.dataset.cmp || null; state.cq = ''; render(); return; }
   if (t.dataset.state){ state.filter = state.filter === t.dataset.state ? 'All' : t.dataset.state; state.cz = {k:1, x:0, y:0}; state.pick = null; render(); return; }
   const list = quizList(), st = list[state.idx];
   if (t.dataset.open !== undefined){ state.sel = t.dataset.open || null; if (currentView() !== 'profiles'){ location.hash = 'profiles'; } else render(); window.scrollTo(0, 0); return; }
@@ -1034,7 +1082,7 @@ if (typeof document !== 'undefined'){
   document.addEventListener('click', onClick);
   document.addEventListener('keydown', ev => { if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches && ev.target.matches('g[data-state]')){ ev.preventDefault(); onClick(ev); } });
   document.addEventListener('change', ev => { if (ev.target.id === 'state-select'){ state.filter = ev.target.value; state.cz = {k:1, x:0, y:0}; state.pick = null; render(); } });
-  document.addEventListener('input', ev => { if (ev.target.id === 'q'){ state.q = ev.target.value; const el = document.getElementById('plist'); if (el) el.innerHTML = listHTML(); } });
+  document.addEventListener('input', ev => { if (ev.target.id === 'cmp-q'){ state.cq = ev.target.value; const el = document.getElementById('cmp-list'), cp = PROFILES.find(x => x.id === state.sel); if (el && cp) el.innerHTML = cmpList(cp); return; } if (ev.target.id === 'q'){ state.q = ev.target.value; const el = document.getElementById('plist'); if (el) el.innerHTML = listHTML(); } });
   window.addEventListener('hashchange', () => { if (currentView() !== 'profiles') state.sel = null; if (currentView() === 'feed' && SB) loadFeed(); render(); window.scrollTo(0, 0); });
   resolveOpen();
   render();
