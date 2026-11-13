@@ -70,8 +70,8 @@ p{margin:0}
 .compass{width:100%;max-width:420px;display:block;margin:0 auto}
 .compass text{font-family:var(--font-body);fill:var(--muted);font-size:10.5px}
 .compass .dot text{fill:var(--on-blue);font-weight:600;font-size:9.5px}
-select,input[type=search]{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;max-width:100%}
-input[type=search]{flex:1 1 160px}
+select,input[type=search],input[type=email]{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;max-width:100%}
+input[type=search],input[type=email]{flex:1 1 160px}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chips button{border:1px solid var(--line);background:transparent;border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600}
 .chips button[aria-pressed="true"]{background:var(--blue);color:var(--on-blue);border-color:var(--blue)}
@@ -139,7 +139,7 @@ button.terr[aria-pressed="true"]{background:var(--blue);color:var(--on-blue)}
 <div class="wrap">
   <header class="top">
     <div class="brand">Poli<span>dex</span></div>
-    <span class="proto">prototype v0.8</span>
+    <span class="proto">prototype v0.9</span>
   </header>
   <nav class="tabs" aria-label="Sections">
     <a href="#overview" data-tab="overview">Overview</a>
@@ -153,6 +153,7 @@ button.terr[aria-pressed="true"]{background:var(--blue);color:var(--on-blue)}
   <main id="app" class="view"></main>
 </div>
 <script src="members.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ---------- Framework: 62 statements ---------- */
 /* dir: L / R on the economic and social axes, G = engagement, N = restraint on foreign policy, T = tracked only */
@@ -454,7 +455,11 @@ loadEmbedded();
 /* ---------- State ---------- */
 const state = {ans:{}, imp:{}, mode:'quick', idx:0, sel:null, filter:'All', q:''};
 try { const s = JSON.parse(localStorage.getItem('polidex-v01') || 'null'); if (s) Object.assign(state, s, {sel:null, filter:'All'}); } catch (e) {}
-function save(){ try { localStorage.setItem('polidex-v01', JSON.stringify({ans:state.ans, imp:state.imp, mode:state.mode, idx:state.idx})); } catch (e) {} }
+function save(){
+  state.ts = Date.now();
+  try { localStorage.setItem('polidex-v01', JSON.stringify({ans:state.ans, imp:state.imp, mode:state.mode, idx:state.idx, ts:state.ts})); } catch (e) {}
+  if (SB && USER){ clearTimeout(syncTimer); syncTimer = setTimeout(pushAnswers, 1500); }
+}
 const quizList = () => state.mode === 'quick' ? ST.filter(s => s.quick) : ST;
 const userReadings = () => { const r = {}; for (const id in state.ans) if (typeof state.ans[id] === 'number') r[id] = state.ans[id]; return r; };
 const answeredCount = () => Object.keys(userReadings()).length;
@@ -580,7 +585,7 @@ const views = {
   },
   results(){
     const r = userReadings(), n = Object.keys(r).length;
-    if (!n) return '<div class="card stack"><h2>No answers yet</h2><p class="muted">Answer a few statements and your compass position and matches will appear here.</p><div><a class="btn" href="#quiz" style="text-decoration:none">Take the quiz</a></div></div>';
+    if (!n) return '<div class="stack"><div class="card stack"><h2>No answers yet</h2><p class="muted">Answer a few statements and your compass position and matches will appear here.</p><div><a class="btn" href="#quiz" style="text-decoration:none">Take the quiz</a></div></div>' + accountCard() + '</div>';
     const u = axisScores(r);
     const ms = PROFILES.map(p => ({p, m:matchScore(state.ans, state.imp, p.r.combined)})).sort((a, b) => (b.m.pct === null ? -1 : b.m.pct) - (a.m.pct === null ? -1 : a.m.pct));
     const fdots = (state.filter === 'All' ? [] : shown()).filter(p => p.ax.F.n).map(p => '<i style="left:' + ((p.ax.F.v + 100) / 2) + '%" title="' + p.name + '"></i>').join('') + (u.F.n ? '<i class="you" style="left:' + ((u.F.v + 100) / 2) + '%" title="You"></i>' : '');
@@ -588,7 +593,7 @@ const views = {
       '<div class="stack-s">' + axisLine('Economic', u.E, null, band) + axisLine('Social', u.S, null, band) + '</div></div>' +
       '<div class="card stack-s"><h2>Foreign policy</h2>' + axisLine('Restraint to engagement', u.F, null, fband) + '<div class="fbar">' + fdots + '</div><div class="ends"><span>Restraint</span><span>Engagement</span></div><p class="small muted">Red is you. Pick a state above to add its members as blue dots. Scale runs from -100 to +100.</p></div>' +
       '<div class="stack-s"><h2>Closest matches</h2><p class="muted small">Compared only on statements you both have a reading for, weighted by what you marked as important. Showing the 20 closest.</p><div class="plist">' + ms.slice(0, 20).map(x => profileButton(x.p, x.m)).join('') + '</div></div>' +
-      '<div class="row"><a class="btn ghost" href="#quiz" style="text-decoration:none">Keep answering</a><button class="btn ghost" id="reset">Clear my answers</button></div></div>';
+      accountCard() + '<div class="row"><a class="btn ghost" href="#quiz" style="text-decoration:none">Keep answering</a><button class="btn ghost" id="reset">Clear my answers</button></div></div>';
   },
   profiles(){
     const p = PROFILES.find(x => x.id === state.sel);
@@ -737,6 +742,48 @@ async function loadLive(fresh){
   finally { liveBusy = false; }
 }
 
+/* ---------- Accounts: sign in by email link, answers saved per user ---------- */
+let SB = null, USER = null, authMsg = '', syncTimer = null;
+function accountCard(){
+  if (!SB) return '<div class="card stack-s"><h2>Save your answers</h2><p class="muted small">Accounts work on the public Polidex site. In this view your answers are kept on this device only.</p></div>';
+  if (USER) return '<div class="card stack-s"><h2>Your account</h2><p class="small">Signed in as <b>' + esc(USER.email || '') + '</b>. Your answers save to your account automatically.</p>' + (authMsg ? '<p class="small muted" role="status">' + esc(authMsg) + '</p>' : '') + '<div><button class="btn ghost" id="auth-out">Sign out</button></div></div>';
+  return '<div class="card stack-s"><h2>Save your answers</h2><p class="muted small">Enter your email and we will send you a sign-in link. No password needed. Your answers then follow you across devices.</p><div class="row"><input id="auth-email" type="email" autocomplete="email" placeholder="you@example.com" aria-label="Email address"><button class="btn" id="auth-send">Email me a link</button></div>' + (authMsg ? '<p class="small" role="status">' + esc(authMsg) + '</p>' : '') + '</div>';
+}
+async function pushAnswers(){
+  if (!SB || !USER) return;
+  const r = await SB.from('quiz_results').upsert({user_id:USER.id, answers:state.ans, importance:state.imp, mode:state.mode, updated_at:new Date().toISOString()});
+  authMsg = r.error ? 'Could not save to your account: ' + r.error.message : 'Saved to your account.';
+  if (currentView() === 'results') render();
+}
+async function pullAnswers(){
+  const r = await SB.from('quiz_results').select('answers,importance,mode,updated_at').eq('user_id', USER.id).maybeSingle();
+  if (r.error){ authMsg = 'Could not load your saved answers: ' + r.error.message; return; }
+  const d = r.data, localN = answeredCount();
+  if (d && d.answers && Object.keys(d.answers).length && (!localN || Date.parse(d.updated_at) > (state.ts || 0))){
+    state.ans = d.answers; state.imp = d.importance || {}; if (d.mode) state.mode = d.mode; state.idx = 0;
+    state.ts = Date.parse(d.updated_at);
+    try { localStorage.setItem('polidex-v01', JSON.stringify({ans:state.ans, imp:state.imp, mode:state.mode, idx:state.idx, ts:state.ts})); } catch (e) {}
+    authMsg = 'Loaded your saved answers.';
+  } else if (localN) await pushAnswers();
+}
+function initAuth(){
+  if (typeof window === 'undefined' || !window.supabase || !window.supabase.createClient) return;
+  try { SB = window.supabase.createClient(API, KEY); } catch (e){ SB = null; return; }
+  SB.auth.onAuthStateChange((ev, session) => {
+    const u = (session && session.user) || null, changed = (u && u.id) !== (USER && USER.id);
+    USER = u; if (!changed) return;
+    if (!u){ authMsg = ''; render(); return; }
+    setTimeout(async () => { await pullAnswers(); if (!views[(location.hash || '').slice(1)]) location.hash = 'results'; else render(); }, 0);
+  });
+  render();
+}
+function sendLink(){
+  const el = document.getElementById('auth-email'), em = ((el && el.value) || '').trim();
+  if (!/^\S+@\S+\.\S+$/.test(em)){ authMsg = 'Enter a valid email address.'; render(); return; }
+  authMsg = 'Sending...'; render();
+  SB.auth.signInWithOtp({email:em, options:{emailRedirectTo:location.origin + location.pathname}}).then(r => { authMsg = r.error ? 'Could not send the link: ' + r.error.message : 'Check your email for a sign-in link. It can take a minute.'; render(); });
+}
+
 function currentView(){ const h = (location.hash || '').slice(1); return views[h] ? h : 'overview'; }
 function render(){
   const v = currentView();
@@ -749,6 +796,8 @@ function onClick(ev){
   const list = quizList(), st = list[state.idx];
   if (t.dataset.open !== undefined){ state.sel = t.dataset.open || null; if (currentView() !== 'profiles'){ location.hash = 'profiles'; } else render(); window.scrollTo(0, 0); return; }
   if (t.id === 'live-retry'){ loadLive(true); return; }
+  if (t.id === 'auth-send'){ sendLink(); return; }
+  if (t.id === 'auth-out'){ SB.auth.signOut(); return; }
   if (t.dataset.filter){ state.filter = t.dataset.filter; render(); return; }
   if (t.dataset.mode){ state.mode = t.dataset.mode; state.idx = 0; }
   else if (t.dataset.ans !== undefined){ state.ans[st.id] = t.dataset.ans === 'ns' ? 'ns' : Number(t.dataset.ans); if (!state.imp[st.id]) state.imp[st.id] = 2; }
@@ -766,6 +815,7 @@ if (typeof document !== 'undefined'){
   window.addEventListener('hashchange', () => { if (currentView() !== 'profiles') state.sel = null; render(); window.scrollTo(0, 0); });
   render();
   loadLive(false);
+  initAuth();
 }
 if (typeof module !== 'undefined') module.exports = {ST, PROFILES, axisScores, band, fband, matchScore, profileReadings, findSnap, applySnapshot, fmtBill, state, getLive:() => LIVE};
 </script>
