@@ -3,10 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Polidex Prototype</title>
+<title>Polidex</title>
+<meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* Layout idea: a reference tool. One narrow column, sticky tab bar, cards that read like index entries. */
 :root{
@@ -132,24 +133,83 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
 .tile.on text{fill:var(--on-blue)}
 .tile:focus-visible rect{stroke:var(--accent);stroke-width:2}
 button.terr[aria-pressed="true"]{background:var(--blue);color:var(--on-blue)}
+/* ===== v1.0 app shell and visual refresh ===== */
+:root{--bg:#FFFFFF;--surface:#FFFFFF;--soft:#F5F7FA;--ink:#0F1419;--muted:#5B6672;--line:#E7ECF0;--accent:#D5263B;--accent-soft:#FDECEF;--blue:#14336B;--blue-soft:#EAF0FA;--ok:#129B6A;
+  --font-display:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;--font-body:var(--font-display);--font-mono:var(--font-display)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#000000;--surface:#000000;--soft:#16181C;--ink:#E7E9EA;--muted:#8B98A5;--line:#2F3336;--accent:#FF5C73;--accent-soft:#33141A;--blue:#8FB4FF;--blue-soft:#14213A;--ok:#3DDC97}}
+:root[data-theme="dark"]{--bg:#000000;--surface:#000000;--soft:#16181C;--ink:#E7E9EA;--muted:#8B98A5;--line:#2F3336;--accent:#FF5C73;--accent-soft:#33141A;--blue:#8FB4FF;--blue-soft:#14213A;--ok:#3DDC97}
+.stripe{display:none}
+body{font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.wrap{max-width:640px;padding:0 0 96px}
+header.top{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:8px;padding:10px 16px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line);flex-wrap:nowrap}
+.brand{font-size:22px;font-weight:800;letter-spacing:-.03em;color:var(--ink);text-decoration:none}
+.proto{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;border:0;background:var(--soft);border-radius:999px;padding:3px 7px}
+.live{margin-left:auto;padding:0;font-size:11px;gap:6px;flex-wrap:nowrap;max-width:60%;justify-content:flex-end;text-align:right}
+.live>span:nth-child(2){flex:0 1 auto;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.live.on>span:nth-child(2){-webkit-line-clamp:1}
+.live button{font-size:11px;padding:3px 8px;border-radius:999px;flex:none}
+nav.tabs{position:fixed;top:auto;bottom:0;left:0;right:0;z-index:7;display:flex;justify-content:space-around;gap:0;padding:6px 8px calc(6px + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);border-bottom:0;overflow:visible}
+nav.tabs a{flex:1 1 0;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;font-size:10.5px;font-weight:600;border-radius:10px;color:var(--muted)}
+nav.tabs a svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav.tabs a[aria-current="page"]{background:transparent;color:var(--ink)}
+nav.tabs a[aria-current="page"] svg{stroke-width:2.4;stroke:var(--accent)}
+.view{padding:16px 16px 0}
+h1{font-size:24px;letter-spacing:-.025em}
+h2{font-size:17px;letter-spacing:-.015em}
+.card{border:0;border-radius:16px;background:var(--soft);padding:16px}
+.btn{border-radius:999px;padding:10px 18px;font-weight:700;font-size:14px}
+.btn.ghost{background:transparent;border:1px solid var(--line)}
+.pill{border:0;background:var(--soft);font-size:11.5px;padding:3px 9px}
+.card .pill{background:var(--bg)}
+.pitem{border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;padding:12px 2px}
+.plist{gap:0}
+.avatar{width:42px;height:42px;font-weight:700;font-size:14px;background:var(--blue-soft);color:var(--blue)}
+.mono{font-size:13px;font-variant-numeric:tabular-nums}
+select,input[type=search],input[type=email],input[type=text],textarea{font:inherit;color:var(--ink);background:var(--soft);border:1px solid transparent;border-radius:12px;padding:10px 12px;max-width:100%}
+select:focus,input:focus,textarea:focus{outline:0;border-color:var(--blue)}
+input[type=text]{flex:1 1 160px}
+textarea{width:100%;resize:vertical;min-height:72px}
+.card select,.card input,.card textarea{background:var(--bg)}
+.note{border-radius:12px;border-left:0}
+.vote{border-left:2px solid var(--line)}
+.reading{border:0;background:var(--bg);border-radius:12px}
+.compass{touch-action:pan-y;user-select:none;-webkit-user-select:none;border-radius:12px;background:var(--bg)}
+.compass text{font-size:calc(10.5px / var(--sc,1))}
+.compass .dot text{font-size:calc(9.5px / var(--sc,1))}
+.compass g[data-pick]{cursor:pointer}
+.zoomrow button{padding:6px 14px;font-size:15px;line-height:1}
+.tile rect{fill:var(--bg);stroke:var(--line)}
+.ibar{display:grid;grid-template-columns:minmax(90px,34%) 1fr 40px;gap:10px;align-items:center;font-size:13px}
+.itrack{position:relative;height:6px;border-radius:3px;background:var(--line)}
+.itrack::after{content:"";position:absolute;left:50%;top:-3px;width:1px;height:12px;background:var(--muted)}
+.itrack i{position:absolute;top:-4px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:var(--blue);border:2px solid var(--soft);z-index:1}
+.inum{text-align:right}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:12.5px;font-weight:600;border-radius:999px;padding:5px 11px;background:var(--bg);border:1px solid var(--line)}
+.scores{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.score{background:var(--bg);border-radius:14px;padding:10px 12px}
+.score b{display:block;font-size:24px;font-weight:800;letter-spacing:-.03em}
+.score span{font-size:11.5px;color:var(--muted);font-weight:600}
+.post{display:grid;grid-template-columns:42px 1fr;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.post.reply{padding:10px 0;border-bottom:0}
+.post .who{font-weight:700}
+.post .meta{color:var(--muted);font-size:13px}
+.post .body{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:2px}
+.acts{display:flex;gap:18px;margin-top:8px;flex-wrap:wrap}
+.acts button{background:transparent;border:0;padding:2px 0;color:var(--muted);font-size:13px;font-weight:600}
+.acts button[aria-pressed="true"]{color:var(--accent)}
+.stance{font-size:11px;font-weight:700;border-radius:999px;padding:2px 7px;background:var(--blue-soft);color:var(--blue);white-space:nowrap}
+.hero{border-radius:20px;padding:20px;background:var(--blue);color:#fff}
+@media (prefers-color-scheme:dark){.hero{background:#14213A;color:var(--ink)}}
+.hero p{opacity:.85}
+.hero .btn{background:#fff;color:#14336B}
 </style>
 </head>
 <body>
 <div class="stripe"></div>
 <div class="wrap">
-  <header class="top">
-    <div class="brand">Poli<span>dex</span></div>
-    <span class="proto">prototype v0.9</span>
-  </header>
-  <nav class="tabs" aria-label="Sections">
-    <a href="#overview" data-tab="overview">Overview</a>
-    <a href="#quiz" data-tab="quiz">Quiz</a>
-    <a href="#results" data-tab="results">My results</a>
-    <a href="#profiles" data-tab="profiles">Profiles</a>
-    <a href="#votes" data-tab="votes">Votes</a>
-    <a href="#method" data-tab="method">Method</a>
-  </nav>
-  <div id="live" class="live" role="status"></div>
+  <header class="top"><a class="brand" href="#overview">Poli<span>dex</span></a><span class="proto">beta</span><div id="live" class="live" role="status"></div></header>
+  <nav class="tabs" aria-label="Sections"><a href="#overview" data-tab="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span>Home</span></a><a href="#profiles" data-tab="profiles"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.900 6.500 5.500"/><circle cx="17.500" cy="9" r="2.500"/><path d="M17 14.500c2.400.200 4 1.800 4.500 4.500"/></svg><span>People</span></a><a href="#feed" data-tab="feed"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><span>Feed</span></a><a href="#votes" data-tab="votes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Votes</span></a><a href="#results" data-tab="results"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c.8-4.200 4-6.500 8-6.500s7.200 2.300 8 6.500"/></svg><span>You</span></a></nav>
   <main id="app" class="view"></main>
 </div>
 <script src="members.js"></script>
@@ -453,8 +513,8 @@ function finishProfiles(){
 loadEmbedded();
 
 /* ---------- State ---------- */
-const state = {ans:{}, imp:{}, mode:'quick', idx:0, sel:null, filter:'All', q:''};
-try { const s = JSON.parse(localStorage.getItem('polidex-v01') || 'null'); if (s) Object.assign(state, s, {sel:null, filter:'All'}); } catch (e) {}
+const state = {ans:{}, imp:{}, mode:'quick', idx:0, sel:null, filter:'All', q:'', cz:{k:1, x:0, y:0}, pick:null};
+try { const s = JSON.parse(localStorage.getItem('polidex-v01') || 'null'); if (s) Object.assign(state, s, {sel:null, filter:'All', cz:{k:1, x:0, y:0}, pick:null}); } catch (e) {}
 function save(){
   state.ts = Date.now();
   try { localStorage.setItem('polidex-v01', JSON.stringify({ans:state.ans, imp:state.imp, mode:state.mode, idx:state.idx, ts:state.ts})); } catch (e) {}
@@ -467,41 +527,50 @@ const answeredCount = () => Object.keys(userReadings()).length;
 /* ---------- Rendering ---------- */
 const fmt = v => v === null ? 'n/a' : (v > 0 ? '+' : '') + Math.round(v);
 function marker(cx, cy, r, party, fill, fic){
-  const stroke = ' stroke="var(--surface)" stroke-width="' + (r < 5 ? 1 : 1.5) + '"' + (fic ? ' stroke-dasharray="3 2"' : '');
+  const stroke = ' vector-effect="non-scaling-stroke" stroke="var(--surface)" stroke-width="' + (r < 5 ? 1 : 1.5) + '"' + (fic ? ' stroke-dasharray="3 2"' : '');
   if (party === 'R') return '<rect x="' + (cx - r * .9) + '" y="' + (cy - r * .9) + '" width="' + (r * 1.8) + '" height="' + (r * 1.8) + '" rx="1.5" fill="' + fill + '"' + stroke + '/>';
   if (party === 'I') return '<rect x="' + (cx - r * .85) + '" y="' + (cy - r * .85) + '" width="' + (r * 1.7) + '" height="' + (r * 1.7) + '" fill="' + fill + '"' + stroke + ' transform="rotate(45 ' + cx + ' ' + cy + ')"/>';
   return '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + fill + '"' + stroke + '/>';
 }
 const GROUPED = 12;
+let PICK = {};
+const CP = 34, CW = 320, CSPAN = CW - 2 * CP;
 function compassSVG(points){
-  const P = 34, W = 320, span = W - 2 * P, X = v => P + (v + 100) / 200 * span, Y = v => P + (100 - v) / 200 * span;
+  const P = CP, W = CW, span = CSPAN, X = v => P + (v + 100) / 200 * span, Y = v => P + (100 - v) / 200 * span;
+  const z = state.cz, k = z.k, vb = W / k, sc = Math.pow(k, .8);
+  const vx = Math.max(0, Math.min(W - vb, X(z.x) - vb / 2)), vy = Math.max(0, Math.min(W - vb, Y(z.y) - vb / 2));
   const rest = points.filter(p => !p.you && p.x !== null && p.y !== null), you = points.filter(p => p.you);
-  let dots = '';
+  let dots = ''; PICK = {};
   if (rest.length > GROUPED){
     const g = {};
-    rest.forEach(p => { const k = Math.round(p.x) + '|' + Math.round(p.y) + '|' + p.party; (g[k] = g[k] || {x:p.x, y:p.y, party:p.party, fic:p.fic, n:0}).n++; });
-    const gs = Object.values(g).sort((a, b) => b.n - a.n);
-    dots = gs.map(b => '<g class="dot" opacity=".82"><title>' + b.n + ' member' + (b.n === 1 ? '' : 's') + '</title>' + marker(X(b.x), Y(b.y), 3 + 1.9 * Math.sqrt(b.n), b.party, 'var(--blue)', b.fic) + '</g>').join('') +
-      gs.filter(b => b.n >= 10).map(b => '<g class="dot"><text x="' + X(b.x) + '" y="' + (Y(b.y) + 3.3) + '" text-anchor="middle">' + b.n + '</text></g>').join('');
+    rest.forEach(p => { const key = Math.round(p.x) + '|' + Math.round(p.y) + '|' + p.party; (g[key] = g[key] || {key, x:p.x, y:p.y, party:p.party, ids:[]}).ids.push(p.id); });
+    const gs = Object.values(g).sort((a, b) => b.ids.length - a.ids.length);
+    dots = gs.map(b => { PICK[b.key] = b.ids; const n = b.ids.length;
+      return '<g class="dot" data-pick="' + b.key + '" opacity="' + (state.pick === b.key ? 1 : .82) + '"><title>' + n + ' member' + (n === 1 ? '' : 's') + '</title>' + marker(X(b.x), Y(b.y), (3 + 1.9 * Math.sqrt(n)) / sc, b.party, state.pick === b.key ? 'var(--accent)' : 'var(--blue)', false) + '</g>'; }).join('') +
+      gs.filter(b => b.ids.length >= 10).map(b => '<g class="dot" style="pointer-events:none"><text x="' + X(b.x) + '" y="' + (Y(b.y) + 3.3 / sc) + '" text-anchor="middle">' + b.ids.length + '</text></g>').join('');
   } else {
-    const seen = {}, r = 11;
+    const seen = {}, r = 11 / sc;
     dots = rest.map(p => {
-      const key = Math.round(p.x) + '|' + Math.round(p.y); const k = seen[key] = (seen[key] || 0) + 1;
-      const ang = (k - 1) * 2.4, rad = k === 1 ? 0 : r * 1.5 * Math.sqrt(k - 1), cx = X(p.x) + rad * Math.cos(ang), cy = Y(p.y) - rad * Math.sin(ang);
-      return '<g class="dot" data-open="' + p.id + '"><title>' + p.name + '</title>' + marker(cx, cy, r, p.party, 'var(--blue)', p.fic) + '<text x="' + cx + '" y="' + (cy + 3.3) + '" text-anchor="middle">' + p.label + '</text></g>';
+      const key = Math.round(p.x) + '|' + Math.round(p.y); const n = seen[key] = (seen[key] || 0) + 1;
+      const ang = (n - 1) * 2.4, rad = n === 1 ? 0 : r * 1.5 * Math.sqrt(n - 1), cx = X(p.x) + rad * Math.cos(ang), cy = Y(p.y) - rad * Math.sin(ang);
+      return '<g class="dot" data-open="' + p.id + '"><title>' + p.name + '</title>' + marker(cx, cy, r, p.party, 'var(--blue)', p.fic) + '<text x="' + cx + '" y="' + (cy + 3.3 / sc) + '" text-anchor="middle">' + p.label + '</text></g>';
     }).join('');
   }
-  dots += you.map(p => '<g class="dot"><title>You</title>' + marker(X(p.x), Y(p.y), 12, 'D', 'var(--accent)', false) + '<text x="' + X(p.x) + '" y="' + (Y(p.y) + 3.3) + '" text-anchor="middle">You</text></g>').join('');
+  dots += you.map(p => '<g class="dot" style="pointer-events:none"><title>You</title>' + marker(X(p.x), Y(p.y), 12 / sc, 'D', 'var(--accent)', false) + '<text x="' + X(p.x) + '" y="' + (Y(p.y) + 3.3 / sc) + '" text-anchor="middle">You</text></g>').join('');
   let grid = '';
-  for (let i = -100; i <= 100; i += 50) grid += '<line x1="' + X(i) + '" y1="' + P + '" x2="' + X(i) + '" y2="' + (W - P) + '" stroke="var(--line)"/><line x1="' + P + '" y1="' + Y(i) + '" x2="' + (W - P) + '" y2="' + Y(i) + '" stroke="var(--line)"/>';
-  return '<svg class="compass" viewBox="0 0 320 320" role="img" aria-label="Compass: economic axis left to right, social axis bottom to top">' +
-    '<rect x="' + P + '" y="' + P + '" width="' + span + '" height="' + span + '" fill="var(--surface)" stroke="var(--line)"/>' + grid +
-    '<rect x="' + X(-15) + '" y="' + Y(15) + '" width="' + (X(15) - X(-15)) + '" height="' + (Y(-15) - Y(15)) + '" fill="var(--blue-soft)"/>' +
-    '<line x1="' + X(0) + '" y1="' + P + '" x2="' + X(0) + '" y2="' + (W - P) + '" stroke="var(--muted)"/><line x1="' + P + '" y1="' + Y(0) + '" x2="' + (W - P) + '" y2="' + Y(0) + '" stroke="var(--muted)"/>' +
-    '<text x="' + (P + 5) + '" y="' + (Y(0) - 6) + '">Economic left</text><text x="' + (W - P - 5) + '" y="' + (Y(0) - 6) + '" text-anchor="end">Economic right</text>' +
+  for (let i = -100; i <= 100; i += 50) grid += '<line vector-effect="non-scaling-stroke" x1="' + X(i) + '" y1="' + P + '" x2="' + X(i) + '" y2="' + (W - P) + '" stroke="var(--line)"/><line vector-effect="non-scaling-stroke" x1="' + P + '" y1="' + Y(i) + '" x2="' + (W - P) + '" y2="' + Y(i) + '" stroke="var(--line)"/>';
+  return '<svg class="compass" style="--sc:' + sc + ';touch-action:' + (k > 1 ? 'none' : 'pan-y') + '" viewBox="' + vx + ' ' + vy + ' ' + vb + ' ' + vb + '" role="img" aria-label="Compass: economic axis left to right, social axis bottom to top">' +
+    '<rect x="' + P + '" y="' + P + '" width="' + span + '" height="' + span + '" fill="var(--soft)" stroke="var(--line)" vector-effect="non-scaling-stroke"/>' + grid +
+    '<line vector-effect="non-scaling-stroke" x1="' + X(0) + '" y1="' + P + '" x2="' + X(0) + '" y2="' + (W - P) + '" stroke="var(--muted)"/><line vector-effect="non-scaling-stroke" x1="' + P + '" y1="' + Y(0) + '" x2="' + (W - P) + '" y2="' + Y(0) + '" stroke="var(--muted)"/>' +
+    '<text x="' + (P + 5) + '" y="' + (Y(0) - 6 / sc) + '">Economic left</text><text x="' + (W - P - 5) + '" y="' + (Y(0) - 6 / sc) + '" text-anchor="end">Economic right</text>' +
     '<text x="' + (W / 2) + '" y="20" text-anchor="middle">Socially conservative</text><text x="' + (W / 2) + '" y="' + (W - 12) + '" text-anchor="middle">Socially progressive</text>' +
-    '<text x="' + P + '" y="' + (W - 12) + '">-100</text><text x="' + (W - P) + '" y="' + (W - 12) + '" text-anchor="end">+100</text>' +
-    dots + '</svg>';
+    dots + '</svg>' +
+    '<div class="row zoomrow" style="justify-content:center"><button class="btn ghost" data-zoom="out" aria-label="Zoom out"' + (k <= 1 ? ' disabled' : '') + '>&minus;</button><button class="btn ghost" data-zoom="in" aria-label="Zoom in"' + (k >= 16 ? ' disabled' : '') + '>+</button>' + (k > 1 ? '<button class="btn ghost" data-zoom="reset" style="font-size:13px">Reset</button>' : '') + '<span class="small muted">Pinch to zoom, drag to move, tap a marker.</span></div>' + pickHTML();
+}
+function pickHTML(){
+  const ids = state.pick && PICK[state.pick]; if (!ids) return '';
+  const list = ids.map(id => PROFILES.find(p => p.id === id)).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
+  return '<div class="stack-s"><div class="spread"><h3>' + list.length + ' member' + (list.length === 1 ? '' : 's') + ' at this spot</h3><button class="btn ghost" data-pick="" style="padding:4px 12px;font-size:12px">Close</button></div><div class="plist">' + list.map(p => profileButton(p)).join('') + '</div></div>';
 }
 const STATES = Object.keys(SN).filter(s => s !== 'EX' && PROFILES.some(p => p.st === s)).sort((a, b) => SN[a].localeCompare(SN[b]));
 const shown = () => PROFILES.filter(p => state.filter === 'All' || p.st === state.filter);
@@ -528,7 +597,7 @@ function allPoints(){
 function legend(){
   const list = shown().filter(p => p.ax.E.n >= 2 && p.ax.S.n >= 2), grouped = list.length > GROUPED;
   return (grouped ? '' : '<div class="legend">' + list.map(p => '<span><b>' + p.ini + '</b>' + p.name + '</span>').join('') + '</div>') +
-    '<p class="small muted">Circle: Democrat. Square: Republican. Diamond: independent. ' + (grouped ? 'Each marker is a group of members at the same position, and bigger means more members. Pick a smaller state to see individuals.' : 'Tap a marker to open the profile.') + ' Members with fewer than two scored statements on either axis are not plotted.</p>';
+    '<p class="small muted">Circle: Democrat. Square: Republican. Diamond: independent. ' + (grouped ? 'Members with the same record sit on the same spot, so a bigger marker means more members. Tap one to list them.' : 'Tap a marker to open the profile.') + ' Members with fewer than two scored statements on either axis are not plotted.</p>';
 }
 function quoteHits(q){
   if (q.length < 3) return '';
@@ -545,6 +614,30 @@ function listHTML(){
   return (state.filter === 'All' && !q ? '<p class="muted">Choose a state or search by name to list members. ' + PROFILES.length + ' profiles are loaded.</p>' : '') +
     quoteHits(q) + (list.length ? sts.map(s => '<div class="stack-s"><h3>' + SN[s] + '</h3><div class="plist">' + list.filter(x => x.st === s).map(x => profileButton(x)).join('') + '</div></div>').join('') : (quoteHits(q) ? '' : '<p class="muted">No members match.</p>'));
 }
+const sg = d => d === 'R' || d === 'G' ? 1 : d === 'L' || d === 'N' ? -1 : 0;
+function issueBars(p){
+  const cats = {};
+  for (const id in p.r.combined){ const st = BYID[id], k = sg(st.dir); if (!k) continue; const c = cats[st.cat] = cats[st.cat] || {sum:0, n:0}; c.sum += p.r.combined[id] * k; c.n++; }
+  const keys = Object.keys(cats); if (!keys.length) return '';
+  return '<div class="stack-s"><h3>By issue</h3>' + keys.map(k => { const v = cats[k].sum / cats[k].n * 100 / 3;
+    return '<div class="ibar"><span>' + k + '</span><span class="itrack"><i style="left:' + ((v + 100) / 2) + '%"></i></span><span class="mono inum">' + fmt(v) + '</span></div>'; }).join('') +
+    '<div class="ends"><span>Left or restraint</span><span>Right or engagement</span></div></div>';
+}
+const STANCE = {F1:['Supports military aid to Ukraine','Opposes military aid to Ukraine','Mixed on Ukraine aid'], F2:['Supports military aid to Israel','Opposes military aid to Israel','Mixed on Israel aid'], F4:['Favors a tougher trade line on China','Opposes a tougher trade line on China','Mixed on China trade'], F5:['Supports security aid for Taiwan','Opposes security aid for Taiwan','Mixed on Taiwan'], F6:['Backs the NATO commitment','Skeptical of the NATO commitment','Mixed on NATO'], T1:['Favors tariffs','Opposes tariffs','Mixed on tariffs']};
+function stanceTags(p){
+  const tags = [];
+  for (const id in STANCE){ const v = p.r.combined[id]; if (typeof v !== 'number') continue; tags.push('<span class="tag">' + STANCE[id][v >= 1.5 ? 0 : v <= -1.5 ? 1 : 2] + '</span>'); }
+  return tags.length ? '<div class="stack-s"><h3>Stances abroad</h3><div class="tags">' + tags.join('') + '</div><p class="small muted">Drawn from recorded votes and statements only. Donors, lobbying and travel are not tracked yet.</p></div>' : '';
+}
+function scoreTiles(p){
+  const t = (o, name, lab) => '<div class="score"><b>' + (o.n ? fmt(o.v) : 'n/a') + '</b><span>' + name + (o.n ? '<br>' + lab(o.v) : '') + '</span></div>';
+  return '<div class="scores">' + t(p.ax.E, 'Economic', band) + t(p.ax.S, 'Social', band) + t(p.ax.F, 'World role', fband) + '</div>';
+}
+function followBtn(p){
+  if (!SB || !LIVE || p.fictional) return '';
+  const on = FOLLOWS.has(p.id);
+  return '<button class="btn' + (on ? ' ghost' : '') + '" data-follow="' + p.id + '" style="padding:6px 16px;font-size:13px">' + (on ? 'Following' : 'Follow') + '</button>';
+}
 function axisLine(name, o, p, labeller){
   if (!o.n) return '<div class="spread"><span>' + name + '</span><span class="muted small">Not enough data</span></div>';
   const prelim = p && p.preliminary;
@@ -559,12 +652,12 @@ function profileButton(p, m){
 const views = {
   overview(){
     const n = answeredCount();
-    return '<div class="stack"><div class="stack-s"><h1>See where politicians stand, and where you stand next to them.</h1>' +
-      '<p class="muted">This prototype covers every current member of Congress using official roll-call records, plus two fictional profiles that show features real data does not cover yet.</p></div>' +
+    return '<div class="stack"><div class="hero stack-s"><h1>See where they stand. See where you stand.</h1><p>Every member of Congress, placed by their own votes and words.</p><div><a class="btn" href="#' + (n ? 'results' : 'quiz') + '" style="text-decoration:none">' + (n ? 'See my results' : 'Take the quiz') + '</a></div></div>' +
       '<div class="card stack"><div class="spread"><h2>Compass</h2><span class="muted small">Scale runs from -100 to +100 on each axis</span></div>' + mapSVG() + chips() + compassSVG(allPoints()) + legend() +
       '<p class="small muted">Real profiles are preliminary: each position rests on a handful of votes.</p></div>' +
       '<div class="card spread"><div><h2>' + (n ? 'You have answered ' + n + ' statement' + (n === 1 ? '' : 's') : 'Find your own position') + '</h2><p class="muted small">20 statements for the quick quiz, 62 for the full one.</p></div><a class="btn" href="#' + (n ? 'results' : 'quiz') + '" style="text-decoration:none">' + (n ? 'See my results' : 'Take the quiz') + '</a></div>' +
-      '<div class="card spread"><div><h2>' + PROFILES.length + ' profiles</h2><p class="muted small">All 50 states and the territories, plus two fictional examples.</p></div><a class="btn ghost" href="#profiles" style="text-decoration:none">Browse profiles</a></div></div>';
+      '<div class="card spread"><div><h2>' + PROFILES.length + ' profiles</h2><p class="muted small">All 50 states and the territories, plus two fictional examples.</p></div><a class="btn ghost" href="#profiles" style="text-decoration:none">Browse</a></div>' +
+      '<p class="small muted" style="text-align:center"><a href="#method">How the numbers work</a></p></div>';
   },
   quiz(){
     const list = quizList(); if (state.idx >= list.length) state.idx = list.length - 1; if (state.idx < 0) state.idx = 0;
@@ -585,7 +678,7 @@ const views = {
   },
   results(){
     const r = userReadings(), n = Object.keys(r).length;
-    if (!n) return '<div class="stack"><div class="card stack"><h2>No answers yet</h2><p class="muted">Answer a few statements and your compass position and matches will appear here.</p><div><a class="btn" href="#quiz" style="text-decoration:none">Take the quiz</a></div></div>' + accountCard() + '</div>';
+    if (!n) return '<div class="stack"><div class="card stack"><h2>No answers yet</h2><p class="muted">Answer a few statements and your compass position and matches will appear here.</p><div><a class="btn" href="#quiz" style="text-decoration:none">Take the quiz</a></div></div>' + accountCard() + youCard() + '</div>';
     const u = axisScores(r);
     const ms = PROFILES.map(p => ({p, m:matchScore(state.ans, state.imp, p.r.combined)})).sort((a, b) => (b.m.pct === null ? -1 : b.m.pct) - (a.m.pct === null ? -1 : a.m.pct));
     const fdots = (state.filter === 'All' ? [] : shown()).filter(p => p.ax.F.n).map(p => '<i style="left:' + ((p.ax.F.v + 100) / 2) + '%" title="' + p.name + '"></i>').join('') + (u.F.n ? '<i class="you" style="left:' + ((u.F.v + 100) / 2) + '%" title="You"></i>' : '');
@@ -593,7 +686,7 @@ const views = {
       '<div class="stack-s">' + axisLine('Economic', u.E, null, band) + axisLine('Social', u.S, null, band) + '</div></div>' +
       '<div class="card stack-s"><h2>Foreign policy</h2>' + axisLine('Restraint to engagement', u.F, null, fband) + '<div class="fbar">' + fdots + '</div><div class="ends"><span>Restraint</span><span>Engagement</span></div><p class="small muted">Red is you. Pick a state above to add its members as blue dots. Scale runs from -100 to +100.</p></div>' +
       '<div class="stack-s"><h2>Closest matches</h2><p class="muted small">Compared only on statements you both have a reading for, weighted by what you marked as important. Showing the 20 closest.</p><div class="plist">' + ms.slice(0, 20).map(x => profileButton(x.p, x.m)).join('') + '</div></div>' +
-      accountCard() + '<div class="row"><a class="btn ghost" href="#quiz" style="text-decoration:none">Keep answering</a><button class="btn ghost" id="reset">Clear my answers</button></div></div>';
+      accountCard() + youCard() + '<div class="row"><a class="btn ghost" href="#quiz" style="text-decoration:none">Keep answering</a><button class="btn ghost" id="reset">Clear my answers</button></div></div>';
   },
   profiles(){
     const p = PROFILES.find(x => x.id === state.sel);
@@ -614,10 +707,15 @@ const views = {
     }).join('');
     return '<div class="stack"><div><button class="btn ghost" id="back" data-open="">&lsaquo; All profiles</button></div>' +
       '<div class="card stack"><div class="row"><span class="avatar">' + p.ini + '</span><div><h1 style="font-size:22px">' + p.name + '</h1><p class="muted small">' + p.office + ' &middot; ' + p.party + '</p></div></div>' +
-      '<p class="small">' + p.since + '</p><div class="row">' + (p.fictional ? '<span class="pill fic">Fictional example</span>' : '<span class="pill accent">Elected official</span>') + (flags ? '<span class="pill flag">' + flags + ' Said vs. Voted flag' + (flags === 1 ? '' : 's') + '</span>' : '') + (m.pct !== null ? '<span class="pill">Match with you: ' + m.pct + '%</span>' : '') + '</div>' +
-      '<div class="stack-s">' + axisLine('Economic', p.ax.E, p, band) + axisLine('Social', p.ax.S, p, band) + axisLine('Foreign policy', p.ax.F, p, fband) + '</div>' +
+      '<p class="small">' + p.since + '</p><div class="row">' + (p.fictional ? '<span class="pill fic">Fictional example</span>' : '<span class="pill accent">Elected official</span>') + (flags ? '<span class="pill flag">' + flags + ' Said vs. Voted flag' + (flags === 1 ? '' : 's') + '</span>' : '') + (m.pct !== null ? '<span class="pill">Match with you: ' + m.pct + '%</span>' : '') + followBtn(p) + '</div>' +
+      scoreTiles(p) + stanceTags(p) + issueBars(p) +
       (p.preliminary ? '<p class="note">Preliminary. Most statements here rest on one or two pieces of evidence. The framework asks for at least two per statement, across at least five statements on an axis, before a label is shown.</p>' : '') + '</div>' +
       '<div class="card"><h2 style="margin-bottom:4px">Positions and evidence</h2><p class="muted small">' + ids.length + ' of 62 statements have evidence so far.</p>' + ev + '</div></div>';
+  },
+  feed(){
+    if (SB && FEED === null){ FEED = []; loadFeed(); }
+    return '<div class="stack"><div class="spread"><h1>Feed</h1>' + (SB ? '<button class="btn ghost" id="feed-refresh" style="padding:6px 14px;font-size:13px">Refresh</button>' : '') + '</div>' + gateHTML() + (feedMsg ? '<p class="small" role="status">' + esc(feedMsg) + '</p>' : '') +
+      '<div>' + ((FEED || []).length ? FEED.map(p => postHTML(p, false)).join('') : (SB ? '<p class="muted" style="padding:24px 0;text-align:center">No posts yet. Be the first.</p>' : '')) + '</div></div>';
   },
   votes(){
     const list = ROLLS.slice().sort((a, b) => (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0)), pl = {D:'Democrats', R:'Republicans', I:'Independents'};
@@ -697,6 +795,7 @@ function applySnapshot(snap){
   ROLLS = rolls.H.concat(rolls.S);
   LIVE = {at:snap.at || 'just now', rolls:snap.rolls.length, members:out.length};
   if (state.sel && !PROFILES.some(p => p.id === state.sel)) state.sel = null;
+  resolveOpen();
 }
 function dropLive(){ if (LIVE){ LIVE = null; loadEmbedded(); state.sel = null; if (typeof document !== 'undefined') render(); } }
 function liveError(e, raw){
@@ -742,6 +841,84 @@ async function loadLive(fresh){
   finally { liveBusy = false; }
 }
 
+/* ---------- Social: handles, feed, reactions, follows ---------- */
+let PROFILE = null, FEED = null, MYRX = {}, FOLLOWS = new Set(), feedMsg = '', OPEN = {}, REPLIES = {};
+const TOPICS = () => ['General'].concat(ST.map(x => x.cat).filter((c, i, a) => a.indexOf(c) === i));
+const ago = t => { const d = (Date.now() - Date.parse(t)) / 1000; return d < 60 ? 'now' : d < 3600 ? Math.floor(d / 60) + 'm' : d < 86400 ? Math.floor(d / 3600) + 'h' : d < 604800 ? Math.floor(d / 86400) + 'd' : new Date(t).toLocaleDateString(); };
+const canPost = () => !!(SB && USER && PROFILE && answeredCount() >= 20);
+async function loadSocial(){
+  if (!SB || !USER) return;
+  const a = await SB.from('profiles').select('*').eq('user_id', USER.id).maybeSingle(); PROFILE = a.data || null;
+  const f = await SB.from('follows').select('member_id'); FOLLOWS = new Set((f.data || []).map(x => x.member_id));
+  if (PROFILE) syncProfile();
+}
+function syncProfile(){
+  if (!SB || !USER || !PROFILE) return;
+  const u = axisScores(userReadings());
+  SB.from('profiles').update({econ:u.E.n ? Math.round(u.E.v) : null, social:u.S.n ? Math.round(u.S.v) : null, n_answers:answeredCount()}).eq('user_id', USER.id).then(() => {});
+}
+async function saveHandle(){
+  const el = document.getElementById('handle-in'), h = ((el && el.value) || '').trim().replace(/^@/, '');
+  if (!/^[A-Za-z0-9_]{3,20}$/.test(h)){ authMsg = 'Use 3 to 20 letters, numbers or underscores.'; render(); return; }
+  const u = axisScores(userReadings());
+  const r = await SB.from('profiles').upsert({user_id:USER.id, handle:h, econ:u.E.n ? Math.round(u.E.v) : null, social:u.S.n ? Math.round(u.S.v) : null, n_answers:answeredCount()}).select().maybeSingle();
+  if (r.error){ authMsg = /duplicate|unique/i.test(r.error.message) ? 'That name is taken. Try another.' : 'Could not save the name: ' + r.error.message; } else { PROFILE = r.data; authMsg = 'Public name saved.'; }
+  render();
+}
+async function loadFeed(){
+  if (!SB) return;
+  const r = await SB.from('feed').select('*').is('parent_id', null).order('created_at', {ascending:false}).limit(60);
+  FEED = r.error ? [] : r.data; feedMsg = r.error ? 'Could not load the feed: ' + r.error.message : '';
+  if (USER){ const m = await SB.from('reactions').select('post_id,value').eq('user_id', USER.id); MYRX = {}; (m.data || []).forEach(x => { MYRX[x.post_id] = x.value; }); }
+  if (currentView() === 'feed') render();
+}
+async function loadReplies(id){ const r = await SB.from('feed').select('*').eq('parent_id', id).order('created_at', {ascending:true}).limit(100); REPLIES[id] = r.data || []; if (currentView() === 'feed') render(); }
+function stanceChip(p){ return typeof p.econ === 'number' && typeof p.social === 'number' ? '<span class="stance" title="Economic and social position from their quiz">E ' + fmt(p.econ) + ' &middot; S ' + fmt(p.social) + '</span>' : ''; }
+function postHTML(p, reply){
+  const mine = USER && p.user_id === USER.id, rx = MYRX[p.id];
+  return '<div class="post' + (reply ? ' reply' : '') + '"><span class="avatar">' + esc((p.handle || '?')[0].toUpperCase()) + '</span><div><div class="row" style="gap:6px"><span class="who">@' + esc(p.handle) + '</span>' + stanceChip(p) + '<span class="meta">' + ago(p.created_at) + '</span>' + (p.topic && !reply ? '<span class="pill">' + esc(p.topic) + '</span>' : '') + '</div>' +
+    '<div class="body">' + esc(p.body) + '</div><div class="acts"><button data-rx="' + p.id + ':1" aria-pressed="' + (rx === 1) + '">Agree ' + p.up + '</button><button data-rx="' + p.id + ':-1" aria-pressed="' + (rx === -1) + '">Disagree ' + p.down + '</button>' +
+    (reply ? '' : '<button data-thread="' + p.id + '">' + (p.replies ? p.replies + (p.replies === 1 ? ' reply' : ' replies') : 'Reply') + '</button>') + (mine ? '<button data-del="' + p.id + '">Delete</button>' : '') + '</div>' +
+    (!reply && OPEN[p.id] ? '<div>' + (REPLIES[p.id] || []).map(x => postHTML(x, true)).join('') + (canPost() ? '<div class="row" style="margin-top:8px"><input type="text" id="reply-' + p.id + '" maxlength="500" placeholder="Write a reply" aria-label="Write a reply"><button class="btn" data-replysend="' + p.id + '" style="padding:8px 14px">Reply</button></div>' : '') + '</div>' : '') + '</div></div>';
+}
+function gateHTML(){
+  if (!SB) return '<div class="card"><p class="muted small">The feed works on the public Polidex site.</p></div>';
+  if (!USER) return '<div class="card spread"><p class="small">Sign in to post, reply and react.</p><a class="btn" href="#results" style="text-decoration:none">Sign in</a></div>';
+  if (!PROFILE) return '<div class="card spread"><p class="small">Pick a public name before you post.</p><a class="btn" href="#results" style="text-decoration:none">Set name</a></div>';
+  const n = answeredCount();
+  if (n < 20) return '<div class="card spread"><p class="small">Answer at least 20 quiz statements to post, so everyone can see where each voice stands. You have answered ' + n + '.</p><a class="btn" href="#quiz" style="text-decoration:none">Quiz</a></div>';
+  return '<div class="card stack-s"><textarea id="post-body" maxlength="500" placeholder="What is on your mind, @' + esc(PROFILE.handle) + '?" aria-label="New post"></textarea><div class="spread"><select id="post-topic" aria-label="Topic">' + TOPICS().map(t => '<option>' + t + '</option>').join('') + '</select><button class="btn" id="post-send">Post</button></div></div>';
+}
+async function sendPost(parent){
+  const el = document.getElementById(parent ? 'reply-' + parent : 'post-body'), body = ((el && el.value) || '').trim(); if (!body) return;
+  const tp = document.getElementById('post-topic'), row = {body};
+  if (parent) row.parent_id = Number(parent); else if (tp && tp.value !== 'General') row.topic = tp.value;
+  syncProfile();
+  const r = await SB.from('posts').insert(row);
+  feedMsg = r.error ? 'Could not post: ' + r.error.message : '';
+  if (parent){ await loadReplies(parent); const f = (FEED || []).find(x => x.id === Number(parent)); if (f && !r.error) f.replies++; render(); } else await loadFeed();
+}
+async function react(id, v){
+  if (!USER){ feedMsg = 'Sign in to react.'; render(); return; }
+  const all = (FEED || []).concat(...Object.values(REPLIES)), p = all.find(x => x.id === id), cur = MYRX[id];
+  if (cur === v){ await SB.from('reactions').delete().eq('post_id', id).eq('user_id', USER.id); delete MYRX[id]; if (p) p[v === 1 ? 'up' : 'down']--; }
+  else { const r = await SB.from('reactions').upsert({post_id:id, user_id:USER.id, value:v}); if (r.error){ feedMsg = 'Could not save your reaction.'; render(); return; } if (p){ if (cur) p[cur === 1 ? 'up' : 'down']--; p[v === 1 ? 'up' : 'down']++; } MYRX[id] = v; }
+  render();
+}
+async function toggleFollow(id){
+  if (!USER){ authMsg = 'Sign in to follow members.'; location.hash = 'results'; return; }
+  if (FOLLOWS.has(id)){ await SB.from('follows').delete().eq('member_id', id).eq('user_id', USER.id); FOLLOWS.delete(id); }
+  else { const r = await SB.from('follows').insert({member_id:id}); if (!r.error) FOLLOWS.add(id); }
+  render();
+}
+function youCard(){
+  if (!SB || !USER) return '';
+  const fl = PROFILES.filter(p => FOLLOWS.has(p.id));
+  return '<div class="card stack-s"><h2>Public name</h2>' + (PROFILE ? '<p class="small">You post as <b>@' + esc(PROFILE.handle) + '</b>. Your compass position shows next to your posts.</p>' : '<p class="muted small">This is the name others see on the feed. It does not have to be your real name.</p>') +
+    '<div class="row"><input type="text" id="handle-in" maxlength="20" placeholder="public_name" aria-label="Public name" value="' + esc(PROFILE ? PROFILE.handle : '') + '"><button class="btn ghost" id="handle-save">' + (PROFILE ? 'Change' : 'Save') + '</button></div></div>' +
+    '<div class="stack-s"><h2>Following</h2>' + (fl.length ? '<div class="plist">' + fl.map(p => profileButton(p)).join('') + '</div>' : '<p class="muted small">Follow members from their profiles and they will be listed here.</p>') + '</div>';
+}
+
 /* ---------- Accounts: sign in by email link, answers saved per user ---------- */
 let SB = null, USER = null, authMsg = '', syncTimer = null;
 function accountCard(){
@@ -752,7 +929,7 @@ function accountCard(){
 async function pushAnswers(){
   if (!SB || !USER) return;
   const r = await SB.from('quiz_results').upsert({user_id:USER.id, answers:state.ans, importance:state.imp, mode:state.mode, updated_at:new Date().toISOString()});
-  authMsg = r.error ? 'Could not save to your account: ' + r.error.message : 'Saved to your account.';
+  authMsg = r.error ? 'Could not save to your account: ' + r.error.message : 'Saved to your account.'; syncProfile();
   if (currentView() === 'results') render();
 }
 async function pullAnswers(){
@@ -772,8 +949,8 @@ function initAuth(){
   SB.auth.onAuthStateChange((ev, session) => {
     const u = (session && session.user) || null, changed = (u && u.id) !== (USER && USER.id);
     USER = u; if (!changed) return;
-    if (!u){ authMsg = ''; render(); return; }
-    setTimeout(async () => { await pullAnswers(); if (!views[(location.hash || '').slice(1)]) location.hash = 'results'; else render(); }, 0);
+    if (!u){ authMsg = ''; PROFILE = null; FOLLOWS = new Set(); MYRX = {}; render(); return; }
+    setTimeout(async () => { await pullAnswers(); await loadSocial(); if (!views[(location.hash || '').slice(1)]) location.hash = 'results'; else render(); }, 0);
   });
   render();
 }
@@ -784,6 +961,41 @@ function sendLink(){
   SB.auth.signInWithOtp({email:em, options:{emailRedirectTo:location.origin + location.pathname}}).then(r => { authMsg = r.error ? 'Could not send the link: ' + r.error.message : 'Check your email for a sign-in link. It can take a minute.'; render(); });
 }
 
+/* ---------- Compass gestures: pinch to zoom, drag to pan ---------- */
+const ptrs = new Map(); let gest = null, dragged = false;
+const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
+function startGest(svg){ gest = {svg, k0:state.cz.k, vb0:svg.getAttribute('viewBox').split(' ').map(Number), start:Array.from(ptrs.values()).map(p => ({x:p.x, y:p.y}))}; }
+function setVB(k, vx, vy){
+  const vb = CW / k; vx = clampN(vx, 0, CW - vb); vy = clampN(vy, 0, CW - vb);
+  gest.svg.setAttribute('viewBox', vx + ' ' + vy + ' ' + vb + ' ' + vb);
+  state.cz = {k, x:(vx + vb / 2 - CP) / CSPAN * 200 - 100, y:100 - (vy + vb / 2 - CP) / CSPAN * 200};
+}
+if (typeof document !== 'undefined'){
+  document.addEventListener('pointerdown', ev => { const svg = ev.target.closest && ev.target.closest('svg.compass'); if (!svg) return; ptrs.set(ev.pointerId, {x:ev.clientX, y:ev.clientY}); dragged = false; startGest(svg); });
+  document.addEventListener('pointermove', ev => {
+    if (!gest || !ptrs.has(ev.pointerId)) return;
+    ptrs.set(ev.pointerId, {x:ev.clientX, y:ev.clientY});
+    const ps = Array.from(ptrs.values()), rc = gest.svg.getBoundingClientRect(), s0 = gest.start;
+    if (ps.length >= 2 && s0.length >= 2){
+      const d0 = Math.hypot(s0[0].x - s0[1].x, s0[0].y - s0[1].y) || 1, d1 = Math.hypot(ps[0].x - ps[1].x, ps[0].y - ps[1].y);
+      const k = clampN(gest.k0 * d1 / d0, 1, 16), fx = ((s0[0].x + s0[1].x) / 2 - rc.left) / rc.width, fy = ((s0[0].y + s0[1].y) / 2 - rc.top) / rc.height;
+      const px = gest.vb0[0] + fx * gest.vb0[2], py = gest.vb0[1] + fy * gest.vb0[3], vb = CW / k;
+      const nfx = ((ps[0].x + ps[1].x) / 2 - rc.left) / rc.width, nfy = ((ps[0].y + ps[1].y) / 2 - rc.top) / rc.height;
+      dragged = true; ev.preventDefault(); setVB(k, px - nfx * vb, py - nfy * vb);
+    } else if (ps.length === 1 && s0.length === 1 && gest.k0 > 1){
+      const dx = ps[0].x - s0[0].x, dy = ps[0].y - s0[0].y; if (Math.abs(dx) + Math.abs(dy) > 5) dragged = true;
+      if (dragged) setVB(gest.k0, gest.vb0[0] - dx / rc.width * gest.vb0[2], gest.vb0[1] - dy / rc.height * gest.vb0[3]);
+    }
+  }, {passive:false});
+  const endPtr = ev => { if (!ptrs.has(ev.pointerId)) return; ptrs.delete(ev.pointerId); if (!gest) return; if (ptrs.size === 0){ const moved = dragged; gest = null; if (moved){ if (state.cz.k < 1.05) state.cz = {k:1, x:0, y:0}; render(); setTimeout(() => { dragged = false; }, 60); } } else startGest(gest.svg); };
+  document.addEventListener('pointerup', endPtr); document.addEventListener('pointercancel', endPtr);
+}
+
+function resolveOpen(){
+  if (typeof location === 'undefined') return;
+  const q = new URLSearchParams(location.search).get('open'); if (!q) return;
+  const m = PROFILES.find(p => p.name.toLowerCase() === q.toLowerCase()); if (m && currentView() === 'profiles') state.sel = m.id;
+}
 function currentView(){ const h = (location.hash || '').slice(1); return views[h] ? h : 'overview'; }
 function render(){
   const v = currentView();
@@ -791,8 +1003,19 @@ function render(){
   document.getElementById('app').innerHTML = views[v]();
 }
 function onClick(ev){
-  const t = ev.target.closest('[data-open],[data-state],button'); if (!t) return;
-  if (t.dataset.state){ state.filter = state.filter === t.dataset.state ? 'All' : t.dataset.state; render(); return; }
+  if (dragged && ev.target.closest && ev.target.closest('svg.compass')){ dragged = false; return; }
+  const t = ev.target.closest('[data-pick],[data-open],[data-state],button'); if (!t) return;
+  if (t.dataset.pick !== undefined){ const ids = PICK[t.dataset.pick]; if (ids && ids.length === 1){ state.sel = ids[0]; state.pick = null; location.hash = 'profiles'; render(); window.scrollTo(0, 0); return; } state.pick = state.pick === t.dataset.pick ? null : (t.dataset.pick || null); render(); return; }
+  if (t.dataset.zoom){ const z = state.cz; if (t.dataset.zoom === 'in') z.k = Math.min(16, z.k * 1.6); else if (t.dataset.zoom === 'out'){ z.k = Math.max(1, z.k / 1.6); if (z.k < 1.05){ z.k = 1; z.x = 0; z.y = 0; } } else state.cz = {k:1, x:0, y:0}; render(); return; }
+  if (t.id === 'post-send'){ sendPost(null); return; }
+  if (t.id === 'feed-refresh'){ loadFeed(); return; }
+  if (t.id === 'handle-save'){ saveHandle(); return; }
+  if (t.dataset.replysend){ sendPost(t.dataset.replysend); return; }
+  if (t.dataset.rx){ const a = t.dataset.rx.split(':'); react(Number(a[0]), Number(a[1])); return; }
+  if (t.dataset.thread){ const id = Number(t.dataset.thread); OPEN[id] = !OPEN[id]; if (OPEN[id]) loadReplies(id); else render(); return; }
+  if (t.dataset.del){ SB.from('posts').delete().eq('id', Number(t.dataset.del)).then(() => { Object.keys(REPLIES).forEach(k => { REPLIES[k] = REPLIES[k].filter(x => x.id !== Number(t.dataset.del)); }); loadFeed(); }); return; }
+  if (t.dataset.follow){ toggleFollow(t.dataset.follow); return; }
+  if (t.dataset.state){ state.filter = state.filter === t.dataset.state ? 'All' : t.dataset.state; state.cz = {k:1, x:0, y:0}; state.pick = null; render(); return; }
   const list = quizList(), st = list[state.idx];
   if (t.dataset.open !== undefined){ state.sel = t.dataset.open || null; if (currentView() !== 'profiles'){ location.hash = 'profiles'; } else render(); window.scrollTo(0, 0); return; }
   if (t.id === 'live-retry'){ loadLive(true); return; }
@@ -810,9 +1033,10 @@ function onClick(ev){
 if (typeof document !== 'undefined'){
   document.addEventListener('click', onClick);
   document.addEventListener('keydown', ev => { if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches && ev.target.matches('g[data-state]')){ ev.preventDefault(); onClick(ev); } });
-  document.addEventListener('change', ev => { if (ev.target.id === 'state-select'){ state.filter = ev.target.value; render(); } });
+  document.addEventListener('change', ev => { if (ev.target.id === 'state-select'){ state.filter = ev.target.value; state.cz = {k:1, x:0, y:0}; state.pick = null; render(); } });
   document.addEventListener('input', ev => { if (ev.target.id === 'q'){ state.q = ev.target.value; const el = document.getElementById('plist'); if (el) el.innerHTML = listHTML(); } });
-  window.addEventListener('hashchange', () => { if (currentView() !== 'profiles') state.sel = null; render(); window.scrollTo(0, 0); });
+  window.addEventListener('hashchange', () => { if (currentView() !== 'profiles') state.sel = null; if (currentView() === 'feed' && SB) loadFeed(); render(); window.scrollTo(0, 0); });
+  resolveOpen();
   render();
   loadLive(false);
   initAuth();
