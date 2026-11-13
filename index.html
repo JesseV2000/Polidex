@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Polidex Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a reference tool. One narrow column, sticky tab bar, cards that read like index entries. */
+:root{
+  --bg:#F4F6FA; --surface:#FFFFFF; --ink:#0B1F44; --muted:#56627A; --line:#D9DFEA;
+  --accent:#B22234; --accent-soft:#FBE9EC; --on-accent:#FFFFFF; --blue:#0A3161; --blue-soft:#E6EDF7; --on-blue:#FFFFFF;
+  --flag:#B45309; --flag-soft:#FDF1DD; --ok:#0F766E;
+  --font-display:'Archivo','Arial Narrow',Arial,sans-serif;
+  --font-body:'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A1428; --surface:#111E38; --ink:#EEF2FA; --muted:#9FAAC2; --line:#26365A;
+    --accent:#FF6B7D; --accent-soft:#3A1620; --on-accent:#1A0A0E; --blue:#9DBBFF; --blue-soft:#18294A; --on-blue:#0A1428;
+    --flag:#F2B45C; --flag-soft:#3A2A10; --ok:#4FD1C5; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A1428; --surface:#111E38; --ink:#EEF2FA; --muted:#9FAAC2; --line:#26365A;
+  --accent:#FF6B7D; --accent-soft:#3A1620; --on-accent:#1A0A0E; --blue:#9DBBFF; --blue-soft:#18294A; --on-blue:#0A1428;
+  --flag:#F2B45C; --flag-soft:#3A2A10; --ok:#4FD1C5; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+.stripe{height:5px;background:linear-gradient(90deg,var(--accent) 0 33.33%,var(--surface) 33.33% 66.66%,var(--blue) 66.66%)}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+a{color:var(--accent)}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px 64px}
+header.top{display:flex;align-items:baseline;gap:10px;padding:20px 0 10px;flex-wrap:wrap}
+.brand{font-family:var(--font-display);font-weight:800;font-size:28px;letter-spacing:-0.02em}
+.brand span{color:var(--accent)}
+.proto{font-family:var(--font-mono);font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:2px 6px}
+nav.tabs{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;gap:4px;padding:8px 0;border-bottom:1px solid var(--line);overflow-x:auto}
+nav.tabs a{flex:0 0 auto;text-decoration:none;color:var(--muted);font-weight:600;font-size:14px;padding:8px 12px;border-radius:6px}
+nav.tabs a[aria-current="page"]{background:var(--blue);color:var(--on-blue)}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;letter-spacing:-0.01em}
+h1{font-size:26px;line-height:1.15;font-weight:800}
+h2{font-size:19px;font-weight:700}
+h3{font-size:15px;font-weight:700}
+p{margin:0}
+.stack{display:flex;flex-direction:column;gap:16px}
+.stack-s{display:flex;flex-direction:column;gap:8px}
+.view{padding-top:20px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.mono{font-family:var(--font-mono);font-size:12.5px;font-variant-numeric:tabular-nums}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spread{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{background:var(--accent);color:var(--on-accent);border:0;border-radius:8px;padding:11px 16px;font-weight:600}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.45;cursor:default}
+.pill{display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:2px 9px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.pill.accent{background:var(--blue-soft);border-color:transparent;color:var(--blue)}
+.pill.flag{background:var(--flag-soft);border-color:transparent;color:var(--flag)}
+.pill.fic{border-style:dashed}
+/* compass */
+.compass{width:100%;max-width:420px;display:block;margin:0 auto}
+.compass text{font-family:var(--font-body);fill:var(--muted);font-size:10.5px}
+.compass .dot text{fill:var(--on-blue);font-weight:600;font-size:9.5px}
+select,input[type=search]{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;max-width:100%}
+input[type=search]{flex:1 1 160px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{border:1px solid var(--line);background:transparent;border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600}
+.chips button[aria-pressed="true"]{background:var(--blue);color:var(--on-blue);border-color:var(--blue)}
+.compass g[data-open]{cursor:pointer}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+.legend b{font-family:var(--font-mono);font-weight:500;background:var(--blue);color:var(--on-blue);border-radius:999px;padding:1px 6px;font-size:11px;margin-right:5px}
+.legend .you b{background:var(--accent);color:var(--on-accent)}
+/* foreign bar */
+.fbar{position:relative;height:10px;border-radius:5px;background:var(--line);margin:18px 0 6px}
+.fbar i{position:absolute;top:-5px;width:20px;height:20px;border-radius:50%;margin-left:-10px;background:var(--blue);border:2px solid var(--surface)}
+.fbar i.you{background:var(--accent)}
+.fbar::after{content:"";position:absolute;left:50%;top:-4px;height:18px;width:1px;background:var(--muted)}
+.ends{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+/* profile list */
+.plist{display:grid;gap:10px}
+.pitem{display:grid;grid-template-columns:40px 1fr auto;gap:12px;align-items:center;text-align:left;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--blue);color:var(--on-blue);display:grid;place-items:center;font-family:var(--font-mono);font-size:13px}
+.pitem .name{font-weight:600}
+.match{font-family:var(--font-display);font-weight:800;font-size:20px;text-align:right}
+/* quiz */
+.progress{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.progress i{display:block;height:100%;background:var(--accent)}
+.qtext{font-family:var(--font-display);font-weight:700;font-size:21px;line-height:1.25;text-wrap:balance}
+.scale{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:center;justify-items:center;margin-top:6px}
+.scale button{border-radius:50%;border:2px solid var(--muted);background:transparent;padding:0;aspect-ratio:1}
+.scale button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent)}
+.s3{width:44px}.s2{width:38px}.s1{width:32px}.s0{width:26px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{background:transparent;border:0;padding:7px 12px;font-size:14px;font-weight:500;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--blue);color:var(--on-blue)}
+/* evidence */
+.ev{border-top:1px solid var(--line);padding:12px 0}
+.ev:first-of-type{border-top:0}
+.readings{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.reading{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.reading .lab{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.vote{font-size:13px;margin-top:8px;padding-left:10px;border-left:3px solid var(--line)}
+.hist{font-size:13px;margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--blue-soft)}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:600}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.note{border-left:3px solid var(--flag);background:var(--flag-soft);padding:10px 12px;border-radius:0 8px 8px 0;font-size:14px}
+@media (prefers-reduced-motion:no-preference){.progress i{transition:width .2s}}
+.live{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted);padding:8px 0 0}
+.live .dotl{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.live>span:nth-child(2){flex:1 1 200px;min-width:0}
+.live.on .dotl{background:var(--ok)}
+.live button{font-size:13px;padding:4px 10px}
+.live details{flex-basis:100%;font-size:12px;word-break:break-all}
+.usmap{width:100%;max-width:440px;display:block;margin:0 auto}
+.tile{cursor:pointer}
+.tile rect{fill:var(--blue-soft);stroke:var(--line)}
+.tile text{font-size:9px;font-family:var(--font-mono);fill:var(--ink);pointer-events:none}
+.tile.on rect{fill:var(--blue)}
+.tile.on text{fill:var(--on-blue)}
+.tile:focus-visible rect{stroke:var(--accent);stroke-width:2}
+button.terr[aria-pressed="true"]{background:var(--blue);color:var(--on-blue)}
+</style>
+</head>
+<body>
+<div class="stripe"></div>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">Poli<span>dex</span></div>
+    <span class="proto">prototype v0.8</span>
+  </header>
+  <nav class="tabs" aria-label="Sections">
+    <a href="#overview" data-tab="overview">Overview</a>
+    <a href="#quiz" data-tab="quiz">Quiz</a>
+    <a href="#results" data-tab="results">My results</a>
+    <a href="#profiles" data-tab="profiles">Profiles</a>
+    <a href="#votes" data-tab="votes">Votes</a>
+    <a href="#method" data-tab="method">Method</a>
+  </nav>
+  <div id="live" class="live" role="status"></div>
+  <main id="app" class="view"></main>
+</div>
+<script src="members.js"></script>
+<script>
+/* ---------- Framework: 62 statements ---------- */
+/* dir: L / R on the economic and social axes, G = engagement, N = restraint on foreign policy, T = tracked only */
+const RAW = [
+['E1','Taxes and spending','The wealthiest Americans should pay a higher share of their income in federal taxes than they do now.','L',1],
+['E2','Taxes and spending','Lower taxes on businesses are one of the best ways to grow the economy.','R',0],
+['E3','Taxes and spending','The federal budget should be balanced mainly by cutting spending, not by raising taxes.','R',1],
+['E4','Taxes and spending','The federal government should spend more on programs for low-income Americans, even if taxes rise.','L',0],
+['E5','Markets and regulation','Free markets with limited government involvement produce the best results for most people.','R',1],
+['E6','Markets and regulation','The government should own or directly run some key industries, such as energy or rail.','L',0],
+['E7','Markets and regulation','Large corporations have too much power and should face stricter regulation or be broken up.','L',0],
+['E8','Markets and regulation','Government regulation of business generally does more harm than good.','R',0],
+['E9','Healthcare','The federal government should guarantee health coverage for every American.','L',1],
+['E10','Healthcare','Private insurance and competition, not government programs, should be the core of the healthcare system.','R',0],
+['E11','Healthcare','The government should set limits on what drug companies can charge for prescription drugs.','L',0],
+['E12','Labor and wages','The federal minimum wage should be raised substantially.','L',1],
+['E13','Labor and wages','Workers should not have to pay union fees as a condition of holding a job.','R',0],
+['E14','Labor and wages','Federal law should make it easier for workers to form unions.','L',0],
+['E15','Cost of living','Reducing federal spending is the best way to bring inflation down.','R',0],
+['E16','Cost of living','The government should cap rents or prices when costs rise sharply.','L',0],
+['E17','Safety net','Able-bodied adults should be required to work or look for work to receive government benefits.','R',1],
+['E18','Safety net','Social Security and Medicare benefits should be protected from cuts, even if taxes must rise.','L',0],
+['E19','Safety net','People should be allowed to invest part of their Social Security contributions in private accounts.','R',0],
+['E20','Energy and environment','The federal government should do more to cut greenhouse gas emissions, even if energy costs rise.','L',1],
+['E21','Energy and environment','The United States should expand domestic oil and gas production.','R',0],
+['E22','Energy and environment','Choices about energy sources should be left to the market, not steered by government subsidies or mandates.','R',0],
+['E23','Education','Public education funding should follow students to the school their family chooses, including private schools.','R',1],
+['E24','Education','The federal government should forgive a significant share of student loan debt.','L',0],
+['S1','Abortion','Abortion should be legal in all or most cases.','L',1],
+['S2','Abortion','Each state should be able to set its own abortion laws, including bans.','R',0],
+['S3','Abortion','Federal law should protect access to abortion nationwide.','L',0],
+['S4','Guns','Gun laws in the United States should be stricter than they are now.','L',1],
+['S5','Guns','The right to own firearms should not be restricted beyond current law.','R',0],
+['S6','Guns','The sale of semi-automatic rifles such as the AR-15 should be banned.','L',0],
+['S7','Immigration','Immigrants living in the country illegally should have a path to legal status if they meet certain requirements.','L',1],
+['S8','Immigration','The government should deport all immigrants living in the country illegally.','R',1],
+['S9','Immigration','Legal immigration levels should be reduced.','R',0],
+['S10','Immigration','The United States should accept more refugees and asylum seekers.','L',0],
+['S11','Crime and policing','Funding for police departments should be increased.','R',1],
+['S12','Crime and policing','Prison sentences for nonviolent drug offenses should be reduced.','L',0],
+['S13','Crime and policing','The death penalty should remain available for the most serious crimes.','R',0],
+['S14','Crime and policing','Marijuana should be legal for adults nationwide.','L',1],
+['S15','LGBTQ and gender','Same-sex marriage should remain legal nationwide.','L',0],
+['S16','LGBTQ and gender','Federal law should prohibit discrimination based on sexual orientation and gender identity.','L',0],
+['S17','LGBTQ and gender','Participation in school sports should be based on sex at birth.','R',1],
+['S18','Religion and culture','Business owners should be able to decline services that conflict with their religious beliefs.','R',0],
+['S19','Religion and culture','Public schools should be allowed to lead students in prayer.','R',0],
+['S20','Religion and culture','Colleges and employers should be able to consider race in order to increase diversity.','L',0],
+['S21','Religion and culture','Parents should have the final say over what their children are taught about gender and sexuality in public schools.','R',0],
+['S22','Elections','Voters should be required to show photo ID to cast a ballot.','R',1],
+['S23','Elections','Every voter should have the option to vote by mail.','L',0],
+['S24','Elections','The Electoral College should be kept as the way presidents are elected.','R',0],
+['F1','Foreign policy','The United States should continue providing military aid to Ukraine.','G',1],
+['F2','Foreign policy','The United States should continue providing military aid to Israel.','G',1],
+['F3','Foreign policy','The United States should reduce its military presence overseas.','N',1],
+['F4','Foreign policy','The United States should take a tougher economic stance toward China, even if consumer prices rise.','G',1],
+['F5','Foreign policy','The United States should be prepared to defend Taiwan militarily if China attacks.','G',0],
+['F6','Foreign policy','The United States should stay fully committed to NATO.','G',0],
+['F7','Foreign policy','Defense spending should be reduced.','N',0],
+['F8','Foreign policy','The United States should push for a negotiated end to the war in Ukraine, even if Ukraine gives up territory.','N',0],
+['F9','Foreign policy','Foreign aid spending should be cut.','N',0],
+['T1','Tracked, not scored','The United States should place tariffs on imported goods to protect American jobs.','T',0],
+['T2','Tracked, not scored','Members of Congress should be subject to term limits.','T',0],
+['T3','Tracked, not scored','The government should need a warrant before accessing Americans\' communications data.','T',0],
+['T4','Tracked, not scored','Social media companies should be free to remove lawful political speech from their platforms.','T',0],
+['T5','Tracked, not scored','Members of Congress should be banned from trading individual stocks.','T',0]
+];
+const ST = RAW.map(a => ({id:a[0], cat:a[1], text:a[2], dir:a[3], quick:!!a[4], axis:a[0][0]}));
+const BYID = Object.fromEntries(ST.map(s => [s.id, s]));
+const SCALE = ['Strongly disagree','Disagree','Somewhat disagree','Indifferent','Somewhat agree','Agree','Strongly agree'];
+const scaleLabel = v => SCALE[Math.round(v) + 3];
+
+/* ---------- Scoring (pure functions) ---------- */
+function sign(st){ return (st.dir === 'R' || st.dir === 'G') ? 1 : (st.dir === 'T' ? 0 : -1); }
+/* readings: {statementId: agree value from -3 to 3}. Returns each axis scaled to -10..10 plus count. */
+function axisScores(readings){
+  const out = {E:{sum:0,n:0}, S:{sum:0,n:0}, F:{sum:0,n:0}};
+  for (const id in readings){
+    const st = BYID[id]; const v = readings[id];
+    if (!st || st.axis === 'T' || typeof v !== 'number') continue;
+    out[st.axis].sum += v * sign(st); out[st.axis].n++;
+  }
+  for (const k in out){ const o = out[k]; o.v = o.n ? (o.sum / o.n) * 100 / 3 : null; }
+  return out;
+}
+function band(v){
+  if (v === null) return 'Not enough data';
+  if (v <= -70) return 'Far left'; if (v <= -40) return 'Left'; if (v < -15) return 'Center-left';
+  if (v <= 15) return 'Center'; if (v < 40) return 'Center-right'; if (v < 70) return 'Right'; return 'Far right';
+}
+function fband(v){
+  if (v === null) return 'Not enough data';
+  if (v <= -60) return 'Strong restraint'; if (v <= -20) return 'Leans restraint';
+  if (v < 20) return 'Mixed'; if (v < 60) return 'Leans engagement'; return 'Strong engagement';
+}
+const avg = a => a.reduce((x, y) => x + y, 0) / a.length;
+/* Per statement: said, voted, combined (votes count double), and the said vs voted flag. */
+function profileReadings(p){
+  const per = {};
+  for (const e of p.evidence){
+    const o = per[e.s] || (per[e.s] = {said:[], voted:[], items:[]});
+    o.items.push(e);
+    if (e.a === null) continue; /* shown but not scored */
+    (e.k === 'vote' ? o.voted : o.said).push(e.a);
+  }
+  const combined = {};
+  for (const id in per){
+    const o = per[id];
+    o.saidV = o.said.length ? avg(o.said) : null;
+    o.votedV = o.voted.length ? avg(o.voted) : null;
+    o.combined = o.saidV === null ? o.votedV : o.votedV === null ? o.saidV : (2 * o.votedV + o.saidV) / 3;
+    o.flag = o.saidV !== null && o.votedV !== null && Math.abs(o.saidV - o.votedV) >= 3;
+    if (o.combined !== null) combined[id] = o.combined;
+  }
+  return {per, combined};
+}
+/* Match: similarity on shared statements, weighted by the user's importance rating. */
+function matchScore(ans, imp, combined){
+  let w = 0, s = 0, n = 0;
+  for (const id in combined){
+    const u = ans[id]; if (typeof u !== 'number') continue;
+    const wt = imp[id] || 2; s += wt * (1 - Math.abs(u - combined[id]) / 6); w += wt; n++;
+  }
+  return {n, pct: n >= 3 ? Math.round(100 * s / w) : null};
+}
+
+/* ---------- Profile data ---------- */
+const SRC = {
+  reed:['Ballotpedia key votes','https://ballotpedia.org/Jack_Reed'],
+  wh:['Ballotpedia key votes','https://ballotpedia.org/Sheldon_Whitehouse'],
+  amo:['Ballotpedia key votes','https://ballotpedia.org/Gabe_Amo'],
+  mag:['Ballotpedia key votes','https://ballotpedia.org/Seth_Magaziner'],
+  r12:['House Clerk roll call 12','https://clerk.house.gov/evs/2025/roll012'],
+  r152:['House Clerk roll call 152','https://clerk.house.gov/evs/2024/roll152'],
+  r23:['House Clerk roll call 23','https://clerk.house.gov/Votes/2025023'],
+  ukr:['Rhode Island Current report','https://amo.house.gov/news/ri-current-aid-to-ukraine-israel-overwhelmingly-approved-by-us-house-in-bipartisan-vote'],
+  wage:['Reed and Whitehouse release','https://www.whitehouse.senate.gov/?p=15091'],
+  pro:['Reed and Whitehouse release','https://www.whitehouse.senate.gov/?p=6245'],
+  whpa:['Reed and Whitehouse release','https://www.whitehouse.senate.gov/?p=6242'],
+  reedAwb:['Reed release','https://www.reed.senate.gov/news/releases/reed-joins-with-feinstein-to-reintroduce-assault-weapons-ban'],
+  whAwb:['Whitehouse release','https://www.whitehouse.senate.gov/news/press-releases/whitehouse-cosponsors-assault-weapons-ban'],
+  magRepro:['Magaziner issue page','https://magaziner.house.gov/issues/reproductive-rights'],
+  magAwb:['Magaziner release','https://magaziner.house.gov/media/press-releases/magaziner-co-sponsors-legislation-ban-assault-weapons-demands-common-sense'],
+  magPro:['Magaziner release','https://magaziner.house.gov/media/press-releases/joined-local-labor-leaders-magaziner-calls-passage-pro-act-strengthen-unions'],
+  magStock:['Magaziner release','https://magaziner.house.gov/media/press-releases/magaziner-roy-introduce-new-bipartisan-bill-ban-congressional-stock-trading'],
+  magUkr:['Magaziner release','https://magaziner.house.gov/media/press-releases/magaziner-urges-speaker-mike-johnson-call-vote-ukraine-funding'],
+  magWage:['House cosponsor list','https://summerlee.house.gov/newsroom/press-releases/rep-lee-colleagues-reintroduce-bill-to-raise-minimum-wage'],
+  amoWage:['House cosponsor list','https://bobbyscott.house.gov/media-center/press-releases/labor-leaders-introduce-bill-raise-minimum-wage-1'],
+  amoWhpa:['Bill cosponsor list','https://fastdemocracy.com/bill/us/119/bills/USB00096647/'],
+  amoAid:['Amo release','https://amo.house.gov/press-release/amo-votes-to-pass-crucial-long-overdue-bipartisan-support-for-democratic-allies'],
+  amoGuns:['Amo release','https://amo.house.gov/press-release/amo-co-leads-the-destroy-zombie-guns-act-to-curb-gun-violence'],
+  joint:['Brown Daily Herald report','https://www.browndailyherald.com/article/2024/03/us-congress-roundup-gabe-amo-rhode-island-on-national-international-stages'],
+  ukr2:['Political Wire vote summary','https://politicalwire.com/2024/04/20/house-passes-ukraine-aid-bill/']
+};
+const PKG = 'Broad package, counted at reduced strength';
+function senateVotes(src){
+  const v = (s, a, bill, title, date, tally, cast, note) => ({s, k:'vote', a, bill, title, date, tally, cast, note, src});
+  return [
+    v('E20', 2, 'H.R. 5376', 'Inflation Reduction Act of 2022', 'Aug 7, 2022', '51 to 50', 'Yea', PKG),
+    v('E11', 2, 'H.R. 5376', 'Inflation Reduction Act of 2022', 'Aug 7, 2022', '51 to 50', 'Yea', PKG),
+    v('E17', -1, 'H.R. 1', 'One Big Beautiful Bill Act', 'Jul 1, 2025', '51 to 50', 'Nay', PKG),
+    v('E2', -1, 'H.R. 1', 'One Big Beautiful Bill Act', 'Jul 1, 2025', '51 to 50', 'Nay', PKG),
+    v('S4', 3, 'S. 2938', 'Bipartisan Safer Communities Act', 'Jun 23, 2022', '65 to 33', 'Yea', 'Direct vote, full strength'),
+    v('S15', 3, 'H.R. 8404', 'Respect for Marriage Act', 'Nov 29, 2022', '61 to 36', 'Yea', 'Direct vote, full strength'),
+    v('S3', 2, 'H.R. 3755', "Women's Health Protection Act of 2021", 'Feb 28, 2022', '46 to 48', 'Yea', 'Procedural vote to advance the bill, reduced strength'),
+    v('S8', -1, 'S. 5', 'Laken Riley Act', 'Jan 20, 2025', '64 to 35', 'Nay', 'Related enforcement bill, not a direct test of the statement'),
+    v('S23', 2, 'H.R. 5746', 'Freedom to Vote: John R. Lewis Act', 'Jan 19, 2022', '49 to 51', 'Yea', PKG),
+    v('F1', 2, 'H.R. 815', 'National security supplemental (Ukraine, Israel, Taiwan)', 'Apr 23, 2024', '79 to 18', 'Yea', PKG),
+    v('F2', 2, 'H.R. 815', 'National security supplemental (Ukraine, Israel, Taiwan)', 'Apr 23, 2024', '79 to 18', 'Yea', PKG),
+    v('F7', -1, 'S. 2296', 'National Defense Authorization Act for FY2026', '2025', '77 to 20', 'Yea', 'Annual authorization, reduced strength')
+  ];
+}
+function houseVotes(bp, ukrSrc){
+  const v = (s, a, bill, title, date, tally, cast, note, src) => ({s, k:'vote', a, bill, title, date, tally, cast, note, src});
+  return [
+    v('E17', -1, 'H.R. 1', 'One Big Beautiful Bill Act', 'Jul 3, 2025', '218 to 214', 'Nay', PKG, bp),
+    v('E2', -1, 'H.R. 1', 'One Big Beautiful Bill Act', 'Jul 3, 2025', '218 to 214', 'Nay', PKG, bp),
+    v('S17', -3, 'H.R. 28', 'Protection of Women and Girls in Sports Act', 'Jan 14, 2025', '218 to 206', 'Nay', 'Direct vote, full strength', SRC.r12),
+    v('S8', -1, 'S. 5', 'Laken Riley Act', 'Jan 22, 2025', '263 to 156', 'Nay', 'Related enforcement bill, not a direct test of the statement', SRC.r23),
+    v('F1', 3, 'H.R. 8035', 'Ukraine Security Supplemental Appropriations Act', 'Apr 20, 2024', '311 to 112', 'Yea', 'Direct vote, full strength', ukrSrc),
+    v('F2', 3, 'H.R. 8034', 'Israel Security Supplemental Appropriations Act', 'Apr 20, 2024', '366 to 58', 'Yea', 'Direct vote, full strength', SRC.r152)
+  ];
+}
+const said = (s, a, date, text, src) => ({s, k:'said', a, date, text, src});
+const cosp = (s, bill, title, date, src) => ({s, k:'said', a:3, date, text:'Cosponsored ' + bill + ', the ' + title + '.', src});
+const fvote = (s, a, bill, title, date, cast) => ({s, k:'vote', a, bill, title, date, tally:'fictional', cast, note:'Fictional example vote', src:null});
+const senSaid = awb => [
+  said('E12', 3, 'Apr 9, 2025', 'Introduced the Raise the Wage Act with Sen. Sanders to lift the federal minimum wage to $17 by 2030.', SRC.wage),
+  said('E14', 3, 'Mar 1, 2023', 'Reintroduced the PRO Act and called for passing it to strengthen the right to form a union.', SRC.pro),
+  said('S3', 3, 'Mar 8, 2023', "Introduced the Women's Health Protection Act to guarantee abortion access nationwide.", SRC.whpa),
+  said('S6', 3, 'Nov 2017', 'Joined the Assault Weapons Ban of 2017 and called for restoring the ban on military-style rifles.', awb)
+];
+const magSaid = [
+  said('S3', 3, 'Mar 30, 2023', "Says every woman should have the right to an abortion in any state; original cosponsor of the Women's Health Protection Act.", SRC.magRepro),
+  said('S6', 3, 'Feb 2, 2023', 'Became an original cosponsor of the Assault Weapons Ban Act and called for action on gun violence.', SRC.magAwb),
+  said('E14', 3, 'Mar 16, 2023', 'Held a press event with labor leaders calling for immediate passage of the PRO Act.', SRC.magPro),
+  said('T5', 3, 'Sep 3, 2025', 'Co-leads the Restore Trust in Congress Act to ban members and their families from trading individual stocks.', SRC.magStock),
+  said('F1', 3, 'Feb 20, 2024', 'Floor speech urging the Speaker to call a vote on Ukraine funding.', SRC.magUkr),
+  said('F2', 2, 'Feb 7, 2024', "Joint statement with Rep. Amo supporting Israel's right to defend itself while rejecting a standalone aid bill.", SRC.joint),
+  cosp('E12', 'H.R. 2743', 'Raise the Wage Act of 2025', 'Apr 8, 2025', SRC.magWage)
+];
+const amoSaid = [
+  said('F1', 3, 'Apr 20, 2024', 'Statement on voting for the aid bills, citing support for Ukraine against the Russian invasion.', SRC.amoAid),
+  said('F2', 2, 'Feb 7, 2024', "Joint statement with Rep. Magaziner supporting Israel's right to defend itself while rejecting a standalone aid bill.", SRC.joint),
+  said('S4', 2, 'Mar 22, 2024', 'Co-led the Destroy Zombie Guns Act and tied rising gun violence to weak controls on firearms.', SRC.amoGuns),
+  cosp('E12', 'H.R. 2743', 'Raise the Wage Act of 2025', 'Apr 8, 2025', SRC.amoWage),
+  cosp('S3', 'H.R. 12', "Women's Health Protection Act of 2025", 'Jun 24, 2025', SRC.amoWhpa)
+];
+const FICTIONAL = [
+  {id:'exa', name:'Example Candidate A', ini:'A', office:'Declared candidate (fictional)', party:'Unaffiliated', since:'Self-created profile. No voting record.', level:'Example', fictional:true,
+    evidence:[['E1',-1],['E3',2],['E5',2],['E9',-1],['E12',1],['E17',2],['E20',0],['E23',2],['S1',1],['S4',-1],['S7',2],['S8',-2],['S11',2],['S14',1],['S17',1],['S22',3],['F1',1],['F2',2],['F3',1],['F4',2]]
+      .map(x => said(x[0], x[1], 'Quiz answer', 'Self-reported quiz answer')),
+    history:{E12:[{date:'Mar 2, 2026', a:-2, text:'A federal mandate would hurt small employers in this district.'},{date:'Aug 18, 2026', a:1, text:'After meeting with local restaurant workers, I now support a phased increase.'}]}},
+  {id:'exb', name:'Example Official B', ini:'B', office:'State legislator (fictional)', party:'Unaffiliated', since:'Fictional record to show the Said vs. Voted flag.', level:'Example', fictional:true,
+    evidence:[
+      said('E3', 3, 'Feb 2026', 'Campaign site: "I will never vote for a budget that grows spending."'),
+      fvote('E3', -2, 'Sample Bill 12', 'State budget with a spending increase', 'Jun 2026', 'Yea'),
+      said('E12', -2, 'Feb 2026', 'Town hall remarks opposing a wage mandate.'),
+      fvote('E12', -3, 'Sample Bill 31', 'Minimum wage increase', 'Apr 2026', 'Nay'),
+      said('E5', 2, 'Feb 2026', 'Campaign site statement on free enterprise.'),
+      said('E17', 2, 'Mar 2026', 'Op-ed supporting work requirements.'),
+      fvote('E17', 3, 'Sample Bill 44', 'Work requirement for benefits', 'May 2026', 'Yea'),
+      said('E9', -2, 'Mar 2026', 'Interview opposing a government coverage guarantee.'),
+      fvote('E9', -3, 'Sample Bill 52', 'State coverage guarantee', 'May 2026', 'Nay'),
+      said('S4', -3, 'Feb 2026', 'Campaign site statement on firearm rights.'),
+      fvote('S4', -3, 'Sample Bill 8', 'Expanded background checks', 'Mar 2026', 'Nay'),
+      said('S22', 3, 'Feb 2026', 'Campaign site statement on voter ID.'),
+      fvote('S22', 3, 'Sample Bill 19', 'Photo ID requirement', 'Apr 2026', 'Yea'),
+      said('S1', -2, 'Mar 2026', 'Debate answer.'),
+      fvote('S1', -3, 'Sample Bill 27', 'Codify abortion access', 'May 2026', 'Nay'),
+      said('S7', 1, 'Mar 2026', 'Debate answer: "Open to earned legal status."'),
+      fvote('S7', -2, 'Sample Bill 60', 'Resolution backing a path to legal status', 'Jun 2026', 'Nay'),
+      said('S8', 0, 'Mar 2026', 'Debate answer.'),
+      said('F3', 2, 'Apr 2026', 'Radio interview.'),
+      said('F1', -1, 'Apr 2026', 'Radio interview.')
+    ]}
+];
+const DIRECT = 'Direct vote, full strength', REL = 'Related enforcement bill, not a direct test of the statement', PROC = 'Procedural vote to advance the bill, reduced strength';
+const sen = (c, s, n) => ['Senate roll call ' + n, 'https://www.senate.gov/legislative/LIS/roll_call_votes/vote' + c + s + '/vote_' + c + '_' + s + '_' + String(n).padStart(5, '0') + '.htm'];
+const hou = (y, n) => ['House Clerk roll call ' + n, 'https://clerk.house.gov/Votes/' + y + n];
+const RC = {
+  ira:{bill:'H.R. 5376', title:'Inflation Reduction Act of 2022', date:'Aug 7, 2022', tally:'51 to 50', src:sen(117, 2, 325), map:[['E20',2,PKG],['E11',2,PKG]]},
+  safer:{bill:'S. 2938', title:'Bipartisan Safer Communities Act', date:'Jun 23, 2022', tally:'65 to 33', src:sen(117, 2, 242), map:[['S4',3,DIRECT]]},
+  rfma:{bill:'H.R. 8404', title:'Respect for Marriage Act', date:'Nov 29, 2022', tally:'61 to 36', src:sen(117, 2, 362), map:[['S15',3,DIRECT]]},
+  whpa:{bill:'H.R. 3755', title:"Women's Health Protection Act of 2021", date:'Feb 28, 2022', tally:'46 to 48', src:sen(117, 2, 65), map:[['S3',2,PROC]]},
+  ftv:{bill:'H.R. 5746', title:'Freedom to Vote: John R. Lewis Act', date:'Jan 19, 2022', tally:'49 to 51', src:sen(117, 2, 9), map:[['S23',2,PKG]]},
+  sup:{bill:'H.R. 815', title:'National security supplemental (Ukraine, Israel, Taiwan)', date:'Apr 23, 2024', tally:'79 to 18', src:sen(118, 2, 154), map:[['F1',2,PKG],['F2',2,PKG]]},
+  slr:{bill:'S. 5', title:'Laken Riley Act', date:'Jan 20, 2025', tally:'64 to 35', src:sen(119, 1, 7), map:[['S8',1,REL]]},
+  sob:{bill:'H.R. 1', title:'One Big Beautiful Bill Act', date:'Jul 1, 2025', tally:'51 to 50', src:sen(119, 1, 372), map:[['E17',1,PKG],['E2',1,PKG]]},
+  ndaa:{bill:'S. 2296', title:'National Defense Authorization Act for FY2026', date:'Oct 9, 2025', tally:'77 to 20', src:sen(119, 1, 570), map:[['F7',-1,'Annual authorization, reduced strength']]},
+  ukr:{bill:'H.R. 8035', title:'Ukraine Security Supplemental Appropriations Act', date:'Apr 20, 2024', tally:'311 to 112', src:hou(2024, 151), map:[['F1',3,DIRECT]]},
+  isr:{bill:'H.R. 8034', title:'Israel Security Supplemental Appropriations Act', date:'Apr 20, 2024', tally:'366 to 58', src:hou(2024, 152), map:[['F2',3,DIRECT]]},
+  sport:{bill:'H.R. 28', title:'Protection of Women and Girls in Sports Act', date:'Jan 14, 2025', tally:'218 to 206', src:hou(2025, 12), map:[['S17',3,DIRECT]]},
+  hlr:{bill:'S. 5', title:'Laken Riley Act', date:'Jan 22, 2025', tally:'263 to 156', src:hou(2025, 23), map:[['S8',1,REL]]},
+  hob:{bill:'H.R. 1', title:'One Big Beautiful Bill Act', date:'Jul 3, 2025', tally:'218 to 214', src:hou(2025, 190), map:[['E17',1,PKG],['E2',1,PKG]]}
+};
+const ORDER = {S:['ira','safer','rfma','whpa','ftv','sup','slr','sob','ndaa'], H:['ukr','isr','sport','hlr','hob']};
+const RIGHT = 'Excluded from scoring: this no vote came from the right of the bill (deficit and debt limit objections), so it does not show disagreement with the statement';
+const EXCLUDE = {'Rand Paul':{sob:RIGHT}, 'Thomas Massie':{hob:RIGHT}, 'Charles E. Schumer':{ftv:'Excluded from scoring: the majority leader switched to no for procedural reasons so the vote could be reconsidered'}};
+const SN = {AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming',DC:'District of Columbia',PR:'Puerto Rico',GU:'Guam',VI:'U.S. Virgin Islands',AS:'American Samoa',MP:'Northern Mariana Islands',EX:'Fictional examples'};
+const TERR = {AS:1, DC:1, GU:1, MP:1, VI:1, PR:1};
+const PN = {D:'Democratic', R:'Republican', I:'Independent'};
+const SAID = {'Jack Reed':senSaid(SRC.reedAwb), 'Sheldon Whitehouse':senSaid(SRC.whAwb), 'Gabe Amo':amoSaid, 'Seth Magaziner':magSaid};
+let ROLLS = [], SPLIT = {};
+function countVote(rid, pa, c){ const s = SPLIT[rid] = SPLIT[rid] || {}, k = pa === 'D' || pa === 'R' ? pa : 'I'; (s[k] = s[k] || {Y:0, N:0})[c]++; }
+function build(ch, casts, name, pa){
+  const ev = [], ex = EXCLUDE[name] || {};
+  ORDER[ch].forEach((key, i) => {
+    const c = casts[i]; if (c !== 'Y' && c !== 'N') return;
+    const rc = RC[key]; countVote(key, pa, c);
+    for (const m of rc.map) ev.push({s:m[0], k:'vote', a:ex[key] ? null : (c === 'Y' ? m[1] : -m[1]), bill:rc.bill, title:rc.title, date:rc.date, tally:rc.tally, cast:c === 'Y' ? 'Yea' : 'Nay', note:ex[key] || m[2], src:rc.src});
+  });
+  return ev.concat(SAID[name] || []);
+}
+const PROFILES = [];
+function mkProfile(id, name, pa, st, ch, dist, evidence){
+  const parts = name.replace(/"[^"]*"/g, '').replace(/,?\s+(Jr\.?|Sr\.?|II|III|IV)$/, '').trim().split(/\s+/);
+  const office = ch === 'S' ? 'U.S. Senator, ' + SN[st]
+    : TERR[st] ? (st === 'PR' ? 'Resident Commissioner, ' : 'Delegate, ') + SN[st]
+    : 'U.S. Representative, ' + SN[st] + (String(dist) === '0' ? ' at-large' : ' District ' + dist);
+  return {id, name, ini:(parts[0][0] + parts[parts.length - 1][0]).toUpperCase(), st, pa, ch, office, party:PN[pa] || pa,
+    since:'Votes come from official House and Senate roll-call records.', level:'Federal', preliminary:true, evidence};
+}
+function loadEmbedded(){
+  PROFILES.length = 0; SPLIT = {};
+  ROLLS = ORDER.S.map(k => Object.assign({id:k, ch:'S'}, RC[k])).concat(ORDER.H.map(k => Object.assign({id:k, ch:'H'}, RC[k])));
+  (typeof POLIDEX_MEMBERS === 'undefined' ? '' : POLIDEX_MEMBERS).split(';').filter(Boolean).forEach((line, i) => {
+    const f = line.split('|');
+    PROFILES.push(mkProfile('m' + i, f[0], f[1], f[2], f[3], f[4], build(f[3], f[5] || '', f[0], f[1])));
+  });
+  finishProfiles();
+}
+function finishProfiles(){
+  FICTIONAL.forEach(p => { p.st = 'EX'; p.pa = 'X'; PROFILES.push(p); });
+  for (const p of PROFILES){ p.r = profileReadings(p); p.ax = axisScores(p.r.combined); }
+}
+loadEmbedded();
+
+/* ---------- State ---------- */
+const state = {ans:{}, imp:{}, mode:'quick', idx:0, sel:null, filter:'All', q:''};
+try { const s = JSON.parse(localStorage.getItem('polidex-v01') || 'null'); if (s) Object.assign(state, s, {sel:null, filter:'All'}); } catch (e) {}
+function save(){ try { localStorage.setItem('polidex-v01', JSON.stringify({ans:state.ans, imp:state.imp, mode:state.mode, idx:state.idx})); } catch (e) {} }
+const quizList = () => state.mode === 'quick' ? ST.filter(s => s.quick) : ST;
+const userReadings = () => { const r = {}; for (const id in state.ans) if (typeof state.ans[id] === 'number') r[id] = state.ans[id]; return r; };
+const answeredCount = () => Object.keys(userReadings()).length;
+
+/* ---------- Rendering ---------- */
+const fmt = v => v === null ? 'n/a' : (v > 0 ? '+' : '') + Math.round(v);
+function marker(cx, cy, r, party, fill, fic){
+  const stroke = ' stroke="var(--surface)" stroke-width="' + (r < 5 ? 1 : 1.5) + '"' + (fic ? ' stroke-dasharray="3 2"' : '');
+  if (party === 'R') return '<rect x="' + (cx - r * .9) + '" y="' + (cy - r * .9) + '" width="' + (r * 1.8) + '" height="' + (r * 1.8) + '" rx="1.5" fill="' + fill + '"' + stroke + '/>';
+  if (party === 'I') return '<rect x="' + (cx - r * .85) + '" y="' + (cy - r * .85) + '" width="' + (r * 1.7) + '" height="' + (r * 1.7) + '" fill="' + fill + '"' + stroke + ' transform="rotate(45 ' + cx + ' ' + cy + ')"/>';
+  return '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + fill + '"' + stroke + '/>';
+}
+const GROUPED = 12;
+function compassSVG(points){
+  const P = 34, W = 320, span = W - 2 * P, X = v => P + (v + 100) / 200 * span, Y = v => P + (100 - v) / 200 * span;
+  const rest = points.filter(p => !p.you && p.x !== null && p.y !== null), you = points.filter(p => p.you);
+  let dots = '';
+  if (rest.length > GROUPED){
+    const g = {};
+    rest.forEach(p => { const k = Math.round(p.x) + '|' + Math.round(p.y) + '|' + p.party; (g[k] = g[k] || {x:p.x, y:p.y, party:p.party, fic:p.fic, n:0}).n++; });
+    const gs = Object.values(g).sort((a, b) => b.n - a.n);
+    dots = gs.map(b => '<g class="dot" opacity=".82"><title>' + b.n + ' member' + (b.n === 1 ? '' : 's') + '</title>' + marker(X(b.x), Y(b.y), 3 + 1.9 * Math.sqrt(b.n), b.party, 'var(--blue)', b.fic) + '</g>').join('') +
+      gs.filter(b => b.n >= 10).map(b => '<g class="dot"><text x="' + X(b.x) + '" y="' + (Y(b.y) + 3.3) + '" text-anchor="middle">' + b.n + '</text></g>').join('');
+  } else {
+    const seen = {}, r = 11;
+    dots = rest.map(p => {
+      const key = Math.round(p.x) + '|' + Math.round(p.y); const k = seen[key] = (seen[key] || 0) + 1;
+      const ang = (k - 1) * 2.4, rad = k === 1 ? 0 : r * 1.5 * Math.sqrt(k - 1), cx = X(p.x) + rad * Math.cos(ang), cy = Y(p.y) - rad * Math.sin(ang);
+      return '<g class="dot" data-open="' + p.id + '"><title>' + p.name + '</title>' + marker(cx, cy, r, p.party, 'var(--blue)', p.fic) + '<text x="' + cx + '" y="' + (cy + 3.3) + '" text-anchor="middle">' + p.label + '</text></g>';
+    }).join('');
+  }
+  dots += you.map(p => '<g class="dot"><title>You</title>' + marker(X(p.x), Y(p.y), 12, 'D', 'var(--accent)', false) + '<text x="' + X(p.x) + '" y="' + (Y(p.y) + 3.3) + '" text-anchor="middle">You</text></g>').join('');
+  let grid = '';
+  for (let i = -100; i <= 100; i += 50) grid += '<line x1="' + X(i) + '" y1="' + P + '" x2="' + X(i) + '" y2="' + (W - P) + '" stroke="var(--line)"/><line x1="' + P + '" y1="' + Y(i) + '" x2="' + (W - P) + '" y2="' + Y(i) + '" stroke="var(--line)"/>';
+  return '<svg class="compass" viewBox="0 0 320 320" role="img" aria-label="Compass: economic axis left to right, social axis bottom to top">' +
+    '<rect x="' + P + '" y="' + P + '" width="' + span + '" height="' + span + '" fill="var(--surface)" stroke="var(--line)"/>' + grid +
+    '<rect x="' + X(-15) + '" y="' + Y(15) + '" width="' + (X(15) - X(-15)) + '" height="' + (Y(-15) - Y(15)) + '" fill="var(--blue-soft)"/>' +
+    '<line x1="' + X(0) + '" y1="' + P + '" x2="' + X(0) + '" y2="' + (W - P) + '" stroke="var(--muted)"/><line x1="' + P + '" y1="' + Y(0) + '" x2="' + (W - P) + '" y2="' + Y(0) + '" stroke="var(--muted)"/>' +
+    '<text x="' + (P + 5) + '" y="' + (Y(0) - 6) + '">Economic left</text><text x="' + (W - P - 5) + '" y="' + (Y(0) - 6) + '" text-anchor="end">Economic right</text>' +
+    '<text x="' + (W / 2) + '" y="20" text-anchor="middle">Socially conservative</text><text x="' + (W / 2) + '" y="' + (W - 12) + '" text-anchor="middle">Socially progressive</text>' +
+    '<text x="' + P + '" y="' + (W - 12) + '">-100</text><text x="' + (W - P) + '" y="' + (W - 12) + '" text-anchor="end">+100</text>' +
+    dots + '</svg>';
+}
+const STATES = Object.keys(SN).filter(s => s !== 'EX' && PROFILES.some(p => p.st === s)).sort((a, b) => SN[a].localeCompare(SN[b]));
+const shown = () => PROFILES.filter(p => state.filter === 'All' || p.st === state.filter);
+const TILES = {AK:[0,0],ME:[11,0],WI:[6,1],VT:[10,1],NH:[11,1],WA:[1,2],ID:[2,2],MT:[3,2],ND:[4,2],MN:[5,2],IL:[6,2],MI:[7,2],NY:[9,2],MA:[10,2],OR:[1,3],NV:[2,3],WY:[3,3],SD:[4,3],IA:[5,3],IN:[6,3],OH:[7,3],PA:[8,3],NJ:[9,3],CT:[10,3],RI:[11,3],CA:[1,4],UT:[2,4],CO:[3,4],NE:[4,4],MO:[5,4],KY:[6,4],WV:[7,4],VA:[8,4],MD:[9,4],DE:[10,4],AZ:[2,5],NM:[3,5],KS:[4,5],AR:[5,5],TN:[6,5],NC:[7,5],SC:[8,5],DC:[9,5],OK:[4,6],LA:[5,6],MS:[6,6],AL:[7,6],GA:[8,6],HI:[0,7],TX:[4,7],FL:[9,7]};
+function mapSVG(){
+  const c = 26, g = 2;
+  return '<svg class="usmap" viewBox="0 0 312 208" role="group" aria-label="Pick a state">' + Object.keys(TILES).map(s => {
+    const x = TILES[s][0], y = TILES[s][1];
+    return '<g class="tile' + (state.filter === s ? ' on' : '') + '" data-state="' + s + '" role="button" tabindex="0" aria-label="' + SN[s] + '"><title>' + SN[s] + '</title><rect x="' + (x * c + g / 2) + '" y="' + (y * c + g / 2) + '" width="' + (c - g) + '" height="' + (c - g) + '" rx="4"/><text x="' + (x * c + c / 2) + '" y="' + (y * c + c / 2 + 3.5) + '" text-anchor="middle">' + s + '</text></g>';
+  }).join('') + '</svg><div class="row" style="justify-content:center"><span class="small muted">Territories</span>' + ['PR','GU','VI','AS','MP'].map(s => '<button class="btn ghost terr" style="padding:3px 8px;font-size:12px" data-state="' + s + '" aria-pressed="' + (state.filter === s) + '" aria-label="' + SN[s] + '">' + s + '</button>').join('') + '</div>' +
+    '<p class="small muted" style="text-align:center">' + (state.filter === 'All' ? 'Tap a state to see its delegation.' : 'Showing ' + SN[state.filter] + '. Tap it again to show all states.') + '</p>';
+}
+function chips(){
+  return '<div class="row"><label class="small muted" for="state-select">State</label><select id="state-select"><option value="All">All states</option>' +
+    STATES.map(s => '<option value="' + s + '"' + (state.filter === s ? ' selected' : '') + '>' + SN[s] + '</option>').join('') +
+    '<option value="EX"' + (state.filter === 'EX' ? ' selected' : '') + '>Fictional examples</option></select></div>';
+}
+function allPoints(){
+  const pts = shown().filter(p => p.ax.E.n >= 2 && p.ax.S.n >= 2).map(p => ({x:p.ax.E.v, y:p.ax.S.v, label:p.ini, fic:p.fictional, party:p.pa, id:p.id, name:p.name}));
+  const u = axisScores(userReadings());
+  if (u.E.n && u.S.n) pts.push({x:u.E.v, y:u.S.v, you:true});
+  return pts;
+}
+function legend(){
+  const list = shown().filter(p => p.ax.E.n >= 2 && p.ax.S.n >= 2), grouped = list.length > GROUPED;
+  return (grouped ? '' : '<div class="legend">' + list.map(p => '<span><b>' + p.ini + '</b>' + p.name + '</span>').join('') + '</div>') +
+    '<p class="small muted">Circle: Democrat. Square: Republican. Diamond: independent. ' + (grouped ? 'Each marker is a group of members at the same position, and bigger means more members. Pick a smaller state to see individuals.' : 'Tap a marker to open the profile.') + ' Members with fewer than two scored statements on either axis are not plotted.</p>';
+}
+function quoteHits(q){
+  if (q.length < 3) return '';
+  const hits = [];
+  for (const p of PROFILES){ if (p.fictional) continue; for (const e of p.evidence){ if (e.k === 'said' && e.text && e.text.toLowerCase().includes(q)){ hits.push({p, e}); if (hits.length >= 40) break; } } if (hits.length >= 40) break; }
+  if (!hits.length) return '';
+  return '<div class="stack-s"><h3>Positions mentioning "' + esc(q) + '"</h3><div class="plist">' + hits.map(h => '<button class="pitem" data-open="' + h.p.id + '"><span class="avatar">' + h.p.ini + '</span><span><span class="name">' + h.p.name + '</span> <span class="muted small">(' + h.p.pa + '-' + h.p.st + ')</span><br><span class="small">' + esc(h.e.text) + '</span><br><span class="muted small">' + esc(h.e.date || '') + ' &middot; ' + BYID[h.e.s].cat + '</span></span></button>').join('') + '</div>' + (hits.length >= 40 ? '<p class="small muted">Showing the first 40 matches.</p>' : '') + '</div>';
+}
+function listHTML(){
+  const q = (state.q || '').trim().toLowerCase();
+  let list = shown(); if (q) list = list.filter(p => p.name.toLowerCase().includes(q));
+  if (state.filter === 'All' && !q) list = PROFILES.filter(p => p.fictional);
+  const sts = []; list.forEach(p => { if (!sts.includes(p.st)) sts.push(p.st); });
+  return (state.filter === 'All' && !q ? '<p class="muted">Choose a state or search by name to list members. ' + PROFILES.length + ' profiles are loaded.</p>' : '') +
+    quoteHits(q) + (list.length ? sts.map(s => '<div class="stack-s"><h3>' + SN[s] + '</h3><div class="plist">' + list.filter(x => x.st === s).map(x => profileButton(x)).join('') + '</div></div>').join('') : (quoteHits(q) ? '' : '<p class="muted">No members match.</p>'));
+}
+function axisLine(name, o, p, labeller){
+  if (!o.n) return '<div class="spread"><span>' + name + '</span><span class="muted small">Not enough data</span></div>';
+  const prelim = p && p.preliminary;
+  const lab = prelim ? 'Preliminary' : (o.n >= 5 || !p ? labeller(o.v) : 'Preliminary');
+  return '<div class="spread"><span>' + name + '</span><span><span class="mono">' + fmt(o.v) + '</span> <span class="pill' + (lab === 'Preliminary' ? '' : ' accent') + '">' + lab + '</span> <span class="muted small">' + o.n + ' statement' + (o.n === 1 ? '' : 's') + '</span></span></div>';
+}
+function profileButton(p, m){
+  return '<button class="pitem" data-open="' + p.id + '"><span class="avatar">' + p.ini + '</span><span><span class="name">' + p.name + '</span> ' + (p.fictional ? '' : '<span class="muted small">(' + p.pa + ')</span> ') + (p.fictional ? '<span class="pill fic">Fictional example</span>' : '') + '<br><span class="muted small">' + p.office + '</span></span>' +
+    (m ? '<span class="match">' + (m.pct === null ? '<span class="muted small">Not enough overlap</span>' : m.pct + '%<br><span class="muted small" style="font-family:var(--font-body);font-weight:400">' + m.n + ' shared</span>') + '</span>' : '<span class="muted">&rsaquo;</span>') + '</button>';
+}
+
+const views = {
+  overview(){
+    const n = answeredCount();
+    return '<div class="stack"><div class="stack-s"><h1>See where politicians stand, and where you stand next to them.</h1>' +
+      '<p class="muted">This prototype covers every current member of Congress using official roll-call records, plus two fictional profiles that show features real data does not cover yet.</p></div>' +
+      '<div class="card stack"><div class="spread"><h2>Compass</h2><span class="muted small">Scale runs from -100 to +100 on each axis</span></div>' + mapSVG() + chips() + compassSVG(allPoints()) + legend() +
+      '<p class="small muted">Real profiles are preliminary: each position rests on a handful of votes.</p></div>' +
+      '<div class="card spread"><div><h2>' + (n ? 'You have answered ' + n + ' statement' + (n === 1 ? '' : 's') : 'Find your own position') + '</h2><p class="muted small">20 statements for the quick quiz, 62 for the full one.</p></div><a class="btn" href="#' + (n ? 'results' : 'quiz') + '" style="text-decoration:none">' + (n ? 'See my results' : 'Take the quiz') + '</a></div>' +
+      '<div class="card spread"><div><h2>' + PROFILES.length + ' profiles</h2><p class="muted small">All 50 states and the territories, plus two fictional examples.</p></div><a class="btn ghost" href="#profiles" style="text-decoration:none">Browse profiles</a></div></div>';
+  },
+  quiz(){
+    const list = quizList(); if (state.idx >= list.length) state.idx = list.length - 1; if (state.idx < 0) state.idx = 0;
+    const st = list[state.idx], a = state.ans[st.id], imp = state.imp[st.id] || 2;
+    const done = list.filter(s => state.ans[s.id] !== undefined).length;
+    const sizes = ['s3','s2','s1','s0','s1','s2','s3'];
+    return '<div class="stack"><div class="spread"><div class="seg" role="group" aria-label="Quiz length"><button id="mode-quick" data-mode="quick" aria-pressed="' + (state.mode === 'quick') + '">Quick (20)</button><button id="mode-full" data-mode="full" aria-pressed="' + (state.mode === 'full') + '">Full (62)</button></div><span class="muted small">' + done + ' of ' + list.length + ' answered</span></div>' +
+      '<div class="progress"><i style="width:' + (100 * done / list.length) + '%"></i></div>' +
+      '<div class="card stack"><div class="spread"><span class="pill">' + st.cat + '</span><span class="mono muted">' + st.id + ' &middot; ' + (state.idx + 1) + '/' + list.length + '</span></div>' +
+      '<p class="qtext">' + st.text + '</p>' +
+      '<div><div class="scale" role="group" aria-label="Your answer">' + SCALE.map((l, i) => '<button id="ans-' + i + '" class="' + sizes[i] + '" data-ans="' + (i - 3) + '" aria-label="' + l + '" aria-pressed="' + (a === i - 3) + '"></button>').join('') + '</div>' +
+      '<div class="ends" style="margin-top:8px"><span>Strongly disagree</span><span>Strongly agree</span></div></div>' +
+      '<p style="text-align:center;font-weight:600;min-height:1.5em">' + (a === 'ns' ? 'Not sure (skipped)' : typeof a === 'number' ? scaleLabel(a) : '<span class="muted" style="font-weight:400">Tap a circle to answer</span>') + '</p>' +
+      '<div class="spread"><div class="row"><span class="small muted">How much this matters to you</span><div class="seg" role="group" aria-label="Importance">' + ['Low','Medium','High'].map((l, i) => '<button id="imp-' + (i + 1) + '" data-imp="' + (i + 1) + '" aria-pressed="' + (imp === i + 1) + '">' + l + '</button>').join('') + '</div></div>' +
+      '<button class="btn ghost" id="not-sure" data-ans="ns">Not sure</button></div></div>' +
+      '<div class="spread"><button class="btn ghost" id="prev" data-step="-1"' + (state.idx === 0 ? ' disabled' : '') + '>Back</button>' +
+      (state.idx === list.length - 1 ? '<a class="btn" href="#results" style="text-decoration:none">See my results</a>' : '<button class="btn" id="next" data-step="1">Next</button>') + '</div></div>';
+  },
+  results(){
+    const r = userReadings(), n = Object.keys(r).length;
+    if (!n) return '<div class="card stack"><h2>No answers yet</h2><p class="muted">Answer a few statements and your compass position and matches will appear here.</p><div><a class="btn" href="#quiz" style="text-decoration:none">Take the quiz</a></div></div>';
+    const u = axisScores(r);
+    const ms = PROFILES.map(p => ({p, m:matchScore(state.ans, state.imp, p.r.combined)})).sort((a, b) => (b.m.pct === null ? -1 : b.m.pct) - (a.m.pct === null ? -1 : a.m.pct));
+    const fdots = (state.filter === 'All' ? [] : shown()).filter(p => p.ax.F.n).map(p => '<i style="left:' + ((p.ax.F.v + 100) / 2) + '%" title="' + p.name + '"></i>').join('') + (u.F.n ? '<i class="you" style="left:' + ((u.F.v + 100) / 2) + '%" title="You"></i>' : '');
+    return '<div class="stack"><div class="card stack"><div class="spread"><h2>Your position</h2><span class="muted small">' + n + ' statements answered</span></div>' + chips() + compassSVG(allPoints()) + legend() +
+      '<div class="stack-s">' + axisLine('Economic', u.E, null, band) + axisLine('Social', u.S, null, band) + '</div></div>' +
+      '<div class="card stack-s"><h2>Foreign policy</h2>' + axisLine('Restraint to engagement', u.F, null, fband) + '<div class="fbar">' + fdots + '</div><div class="ends"><span>Restraint</span><span>Engagement</span></div><p class="small muted">Red is you. Pick a state above to add its members as blue dots. Scale runs from -100 to +100.</p></div>' +
+      '<div class="stack-s"><h2>Closest matches</h2><p class="muted small">Compared only on statements you both have a reading for, weighted by what you marked as important. Showing the 20 closest.</p><div class="plist">' + ms.slice(0, 20).map(x => profileButton(x.p, x.m)).join('') + '</div></div>' +
+      '<div class="row"><a class="btn ghost" href="#quiz" style="text-decoration:none">Keep answering</a><button class="btn ghost" id="reset">Clear my answers</button></div></div>';
+  },
+  profiles(){
+    const p = PROFILES.find(x => x.id === state.sel);
+    if (!p) return '<div class="stack"><div class="stack-s"><h1>Profiles</h1><p class="muted">Every current member of Congress. State and local officials come later.</p></div>' +
+      '<div class="spread">' + chips() + '<input id="q" type="search" placeholder="Search names or positions" aria-label="Search names or positions" value="' + (state.q || '').replace(/"/g, '&quot;') + '"></div>' +
+      '<div id="plist" class="stack">' + listHTML() + '</div></div>';
+    const ids = Object.keys(p.r.per).sort((a, b) => ST.indexOf(BYID[a]) - ST.indexOf(BYID[b]));
+    const flags = ids.filter(id => p.r.per[id].flag).length;
+    const m = matchScore(state.ans, state.imp, p.r.combined);
+    const ev = ids.map(id => {
+      const o = p.r.per[id], st = BYID[id], u = state.ans[id];
+      const votes = o.items.filter(e => e.k === 'vote').map(e => '<div class="vote"><b>' + (e.cast === 'Cosponsored' ? 'Cosponsored' : 'Voted ' + e.cast + '</b> on') + (e.cast === 'Cosponsored' ? '</b>' : '') + ' <span class="mono">' + e.bill + '</span> ' + e.title + '<br><span class="muted">' + e.date + (e.tally && e.tally !== 'fictional' ? ' &middot; tally ' + e.tally : '') + ' &middot; ' + e.note + (e.src ? ' &middot; <a href="' + e.src[1] + '">' + e.src[0] + '</a>' : '') + '</span></div>').join('');
+      const saids = o.items.filter(e => e.k === 'said' && e.text !== 'Self-reported quiz answer').map(e => '<div class="vote"><b>Said</b> (' + e.date + '): ' + e.text + (e.src ? ' <span class="muted">&middot; <a href="' + e.src[1] + '">' + e.src[0] + '</a></span>' : '') + '</div>').join('');
+      const h = p.history && p.history[id] ? '<div class="hist"><b>Position updated</b>' + p.history[id].map(x => '<br><span class="mono">' + x.date + '</span> ' + scaleLabel(x.a) + ': ' + x.text).join('') + '</div>' : '';
+      return '<div class="ev"><div class="spread"><span class="pill">' + st.cat + '</span>' + (o.flag ? '<span class="pill flag">Said vs. Voted differ</span>' : '') + '</div><p style="margin-top:6px;font-weight:500">' + st.text + '</p>' +
+        '<div class="readings"><div class="reading"><div class="lab">Said</div>' + (o.saidV === null ? '<span class="muted small">Not collected yet</span>' : scaleLabel(o.saidV)) + '</div><div class="reading"><div class="lab">Voted</div>' + (o.votedV === null ? '<span class="muted small">' + (o.items.some(e => e.k === 'vote') ? 'Excluded, see note' : 'No vote on record') + '</span>' : scaleLabel(o.votedV)) + '</div></div>' +
+        (typeof u === 'number' ? '<p class="small muted" style="margin-top:6px">Your answer: ' + scaleLabel(u) + '</p>' : '') + saids + votes + h + '</div>';
+    }).join('');
+    return '<div class="stack"><div><button class="btn ghost" id="back" data-open="">&lsaquo; All profiles</button></div>' +
+      '<div class="card stack"><div class="row"><span class="avatar">' + p.ini + '</span><div><h1 style="font-size:22px">' + p.name + '</h1><p class="muted small">' + p.office + ' &middot; ' + p.party + '</p></div></div>' +
+      '<p class="small">' + p.since + '</p><div class="row">' + (p.fictional ? '<span class="pill fic">Fictional example</span>' : '<span class="pill accent">Elected official</span>') + (flags ? '<span class="pill flag">' + flags + ' Said vs. Voted flag' + (flags === 1 ? '' : 's') + '</span>' : '') + (m.pct !== null ? '<span class="pill">Match with you: ' + m.pct + '%</span>' : '') + '</div>' +
+      '<div class="stack-s">' + axisLine('Economic', p.ax.E, p, band) + axisLine('Social', p.ax.S, p, band) + axisLine('Foreign policy', p.ax.F, p, fband) + '</div>' +
+      (p.preliminary ? '<p class="note">Preliminary. Most statements here rest on one or two pieces of evidence. The framework asks for at least two per statement, across at least five statements on an axis, before a label is shown.</p>' : '') + '</div>' +
+      '<div class="card"><h2 style="margin-bottom:4px">Positions and evidence</h2><p class="muted small">' + ids.length + ' of 62 statements have evidence so far.</p>' + ev + '</div></div>';
+  },
+  votes(){
+    const list = ROLLS.slice().sort((a, b) => (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0)), pl = {D:'Democrats', R:'Republicans', I:'Independents'};
+    return '<div class="stack"><div class="stack-s"><h1>Votes</h1><p class="muted">The ' + list.length + ' roll calls that feed the compass so far, newest first. Party counts cover current members only, so they can differ from the official tally.</p></div>' +
+      list.map(rc => {
+        const sp = SPLIT[rc.id] || {};
+        return '<div class="card stack-s"><div class="spread"><span class="pill">' + (rc.ch === 'H' ? 'House' : 'Senate') + '</span><span class="mono muted small">' + esc(rc.date) + '</span></div><h2 style="font-size:17px">' + esc(rc.title) + '</h2>' + (rc.sum ? '<p>' + esc(rc.sum) + '</p>' : '') +
+          '<p class="small muted"><span class="mono">' + esc(rc.bill) + '</span> &middot; official tally ' + esc(rc.tally) + ' &middot; <a href="' + esc(rc.src[1]) + '">' + esc(rc.src[0]) + '</a></p>' +
+          '<div class="tablewrap"><table><tr><th>Current members</th><th>Yea</th><th>Nay</th></tr>' + ['D','R','I'].filter(k => sp[k]).map(k => '<tr><td>' + pl[k] + '</td><td class="num mono">' + sp[k].Y + '</td><td class="num mono">' + sp[k].N + '</td></tr>').join('') + '</table></div>' +
+          rc.map.filter(m => BYID[m[0]]).map(m => '<div class="vote"><b>A Yea counts as ' + (m[1] > 0 ? 'agreement' : 'disagreement') + ' (' + (m[1] > 0 ? '+' : '') + m[1] + ' of 3)</b> with: ' + BYID[m[0]].text + '<br><span class="muted">' + esc(m[2] || '') + '</span></div>').join('') + '</div>';
+      }).join('') + '</div>';
+  },
+  method(){
+    return '<div class="stack"><div class="stack-s"><h1>How the numbers work</h1><p class="muted">Users and politicians are measured against the same 62 statements.</p></div>' +
+      '<div class="card stack-s"><h2>Scale</h2><p>Each answer runs from Strongly disagree (-3) to Strongly agree (+3). Statements where agreeing leans left are flipped, so negative always means left. An axis position is the average of answered statements times 100/3, giving -100 to +100. Not sure answers are skipped.</p></div>' +
+      '<div class="card"><h2 style="margin-bottom:8px">Labels</h2><div class="tablewrap"><table><tr><th>Position</th><th>Label</th></tr>' + [['-100 to -70','Far left'],['-70 to -40','Left'],['-40 to -15','Center-left'],['-15 to +15','Center'],['+15 to +40','Center-right'],['+40 to +70','Right'],['+70 to +100','Far right']].map(r => '<tr><td class="num mono">' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</table></div></div>' +
+      '<div class="card stack-s"><h2>Politicians</h2><p>Each statement gets a Said reading (public statements, sponsored and cosponsored bills, and self-reported answers) and a Voted reading (roll-call votes). The combined reading counts votes double. A flag appears when Said and Voted differ by 3 or more points.</p><p>Direct votes count at full strength. Broad packages, procedural votes, and loosely related bills count at reduced strength, with the reason shown next to the vote.</p></div>' +
+      '<div class="card stack-s"><h2>Matching</h2><p>Your match with a profile compares only statements you both have a reading for. Each statement is weighted by the importance you gave it. At least 3 shared statements are needed.</p></div>' +
+      '<div class="card stack-s"><h2>Known limits of this prototype</h2><p>Red and blue are brand colors only. They never encode party or position.</p><p>Votes are yes or no, so a record built only from votes pushes members toward the ends of the scale. Statements, sponsorships, and votes that split a party are needed to separate members of the same party.</p><p>Votes come from the Polidex database, which imports the official House Clerk and Senate roll-call feeds. ' + (LIVE ? 'This page is reading the database live: ' + LIVE.rolls + ' roll calls are mapped to statements so far, as of ' + LIVE.at + '.' : 'This page is showing a built-in snapshot taken on November 12, 2026 covering 14 mapped roll calls. When it can reach the database it switches to live data.') + ' The roster is the current membership list and does not yet reflect November 2026 election results. A vote is excluded when the member opposed a bill for reasons opposite to the statement. Only the Rhode Island profiles include quoted public statements so far. Other members have cosponsorships only. Statements come from press releases and issue pages published by each member and issue pages. Every item links to its source.</p></div>' +
+      '<div class="card"><h2 style="margin-bottom:8px">All 62 statements</h2><div class="tablewrap"><table><tr><th>#</th><th>Statement</th><th>Agreeing leans</th></tr>' + ST.map(s => '<tr><td class="mono">' + s.id + '</td><td>' + s.text + '</td><td>' + ({L:'Left',R:'Right',G:'Engagement',N:'Restraint',T:'Not scored'})[s.dir] + '</td></tr>').join('') + '</table></div></div></div>';
+  }
+};
+
+
+/* ---------- Live data from the Polidex database ---------- */
+let LIVE = null, MCP = null, liveBusy = false;
+const SERVER = 'Supabase', TOOL = 'execute_sql', QUERY = {project_id:'bwvedhnxrnvkgfbzgulj', query:'select public.polidex_snapshot() as snap'};
+const API = 'https://bwvedhnxrnvkgfbzgulj.supabase.co', KEY = 'sb_publishable_MPZXddCCfetDzac-UkS2VQ_sLnjRJxo';
+const BUILTIN = 'Showing the built-in snapshot from Nov 12, 2026.';
+const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
+function setLive(html, on, retry){
+  if (typeof document === 'undefined') return;
+  const el = document.getElementById('live'); if (!el) return;
+  el.className = 'live' + (on ? ' on' : '');
+  el.innerHTML = '<span class="dotl"></span><span>' + html + '</span>' + (retry ? '<button class="btn ghost" id="live-retry">' + retry + '</button>' : '');
+}
+function fmtBill(b){
+  const m = /^([A-Z ]+?)\s*(\d.*)$/.exec(String(b || '').trim()); if (!m) return b || '';
+  const p = m[1].trim().split(/\s+/); if (p[0] === 'PN') return 'PN ' + m[2];
+  return p.map(x => x.length > 1 ? x[0] + x.slice(1).toLowerCase() : x).join('.') + '. ' + m[2];
+}
+/* The connector wraps rows in explanatory text, sometimes JSON-encoded more than once. Dig until the snapshot object appears. */
+function findSnap(x, depth){
+  depth = depth || 0; if (depth > 8 || x === null || x === undefined) return null;
+  if (typeof x === 'string'){
+    const t = x.trim();
+    if (t[0] === '{' || t[0] === '[' || t[0] === '"'){ try { const r = findSnap(JSON.parse(t), depth + 1); if (r) return r; } catch (e) {} }
+    const a = x.indexOf('[{"snap"'), b = x.lastIndexOf('}]');
+    if (a >= 0 && b > a){ try { return findSnap(JSON.parse(x.slice(a, b + 2)), depth + 1); } catch (e) {} }
+    return null;
+  }
+  if (typeof x !== 'object') return null;
+  if (Array.isArray(x.rolls) && Array.isArray(x.members)) return x;
+  if (Array.isArray(x)){ for (const v of x){ const r = findSnap(v, depth + 1); if (r) return r; } return null; }
+  for (const k of ['snap', 'payload', 'structuredContent', 'result', 'text', 'content', 'rows', 'data']) if (k in x){ const r = findSnap(x[k], depth + 1); if (r) return r; }
+  for (const k in x){ const r = findSnap(x[k], depth + 1); if (r) return r; }
+  return null;
+}
+function applySnapshot(snap){
+  if (!snap || !Array.isArray(snap.rolls) || !Array.isArray(snap.members) || !snap.members.length) throw {code:'parse'};
+  const rolls = {H:[], S:[]}, ex = {};
+  snap.rolls.forEach(r => { if (rolls[r[1]]) rolls[r[1]].push({id:r[0], ch:r[1], bill:fmtBill(r[2]), title:r[3] || '', date:r[4], tally:r[5] + ' to ' + r[6], src:[(r[1] === 'H' ? 'House Clerk' : 'Senate') + ' roll call ' + String(r[0]).split('-').pop(), r[7]], map:r[8] || [], sum:r[9] || ''}); });
+  (snap.excl || []).forEach(e => { (ex[e[1]] = ex[e[1]] || {})[e[0]] = 'Excluded from scoring: ' + e[2].charAt(0).toLowerCase() + e[2].slice(1); });
+  const defs = (snap.defs || []).map(d => ({s:d[0], k:'said', a:d[1], date:d[3] || 'Undated', text:d[4], src:d[6] ? [d[5] || 'Source', d[6]] : null}));
+  SPLIT = {};
+  const out = snap.members.map(m => {
+    const ev = [], mex = ex[m[0]] || {}, casts = m[6] || '';
+    (rolls[m[4]] || []).forEach((rc, i) => {
+      const c = casts[i]; if (c !== 'Y' && c !== 'N') return;
+      countVote(rc.id, m[2], c);
+      for (const mp of rc.map){ if (!BYID[mp[0]]) continue; ev.push({s:mp[0], k:'vote', a:mex[rc.id] ? null : (c === 'Y' ? mp[1] : -mp[1]), bill:rc.bill, title:rc.title, date:rc.date, tally:rc.tally, cast:c === 'Y' ? 'Yea' : 'Nay', note:mex[rc.id] || mp[2] || '', src:rc.src}); }
+    });
+    (m[7] || []).forEach(i => { if (defs[i] && BYID[defs[i].s]) ev.push(defs[i]); });
+    return mkProfile(m[0], m[1], m[2], m[3], m[4], m[5], ev);
+  });
+  PROFILES.length = 0; out.forEach(p => PROFILES.push(p)); finishProfiles();
+  ROLLS = rolls.H.concat(rolls.S);
+  LIVE = {at:snap.at || 'just now', rolls:snap.rolls.length, members:out.length};
+  if (state.sel && !PROFILES.some(p => p.id === state.sel)) state.sel = null;
+}
+function dropLive(){ if (LIVE){ LIVE = null; loadEmbedded(); state.sel = null; if (typeof document !== 'undefined') render(); } }
+function liveError(e, raw){
+  const c = e && e.code, where = ' in claude.ai Settings, Connectors, then tap Try again.';
+  if (c === 'needs_reauth'){ dropLive(); return setLive(BUILTIN + ' Your Supabase connection has expired. Reconnect Supabase' + where, false, 'Try again'); }
+  if (c === 'server_not_connected' || c === 'server_not_found' || c === 'selection_required'){ dropLive(); return setLive(BUILTIN + ' Live data needs the Supabase connector. Add or choose Supabase' + where, false, 'Try again'); }
+  if (c === 'approval_required' || c === 'consent_required'){ dropLive(); return setLive(BUILTIN + ' Live data needs your approval. Tap the button and choose Allow.', false, 'Load live data'); }
+  if (c === 'not_in_manifest' || c === 'blocked_by_policy'){ dropLive(); return setLive(BUILTIN + ' Live data is not allowed for this view.', false); }
+  if (c === 'not_granted' || c === 'capability_disabled' || c === 'capability_removed' || c === 'user_changed') return setLive(BUILTIN + ' Live data is not available in this view.', false);
+  if (c === 'tool_error') return setLive((LIVE ? 'Still showing data from ' + esc(LIVE.at) + '.' : BUILTIN) + ' The database reported an error: ' + esc(String(e.message || '').slice(0, 160)), !!LIVE, 'Try again');
+  if (c === 'parse') return setLive(BUILTIN + ' Live data arrived in a form this page could not read.' + (raw ? '<details><summary>Details to send back</summary>' + esc(raw) + '</details>' : ''), false, 'Try again');
+  return setLive((LIVE ? 'Still showing data from ' + esc(LIVE.at) + '.' : BUILTIN) + ' The database did not answer' + (c ? ' (' + esc(c) + ')' : '') + '. Try again in a moment.', !!LIVE, 'Try again');
+}
+async function loadLive(fresh){
+  if (liveBusy) return; liveBusy = true;
+  let raw = '';
+  try {
+    setLive((LIVE ? 'Refreshing' : BUILTIN + ' Checking the Polidex database') + '...', !!LIVE);
+    if (!MCP) MCP = (typeof window !== 'undefined' && window.claude && typeof window.claude.use === 'function') ? await window.claude.use('mcp') : null;
+    if (!MCP){
+      try {
+        const r = await fetch(API + '/rest/v1/rpc/polidex_snapshot', {method:'POST', headers:{apikey:KEY, Authorization:'Bearer ' + KEY, 'Content-Type':'application/json'}, body:'{}'});
+        if (!r.ok) throw {code:'http ' + r.status};
+        const snap = findSnap(await r.json()); if (!snap) throw {code:'parse'};
+        applySnapshot(snap); render();
+        setLive('Live from the Polidex database. Updated ' + esc(LIVE.at) + '. ' + LIVE.rolls + ' mapped roll calls, ' + LIVE.members + ' members.', true, 'Refresh');
+      } catch (e){ setLive((LIVE ? 'Still showing data from ' + esc(LIVE.at) + '.' : BUILTIN) + ' The live database could not be reached' + (e && e.code ? ' (' + esc(e.code) + ')' : '') + '.', !!LIVE, 'Try again'); }
+      return;
+    }
+    const opts = {cache: fresh ? {staleTime:0, gcTime:86400000, refresh:true} : {staleTime:300000, gcTime:86400000}};
+    let res;
+    try { res = await MCP.callTool(SERVER, TOOL, QUERY, opts); }
+    catch (e){
+      if (!(e && e.retryable)) throw e;
+      await new Promise(r => setTimeout(r, Math.min(60000, (e.retryAfterMs || 1200) + Math.random() * 800)));
+      res = await MCP.callTool(SERVER, TOOL, QUERY, opts);
+    }
+    const snap = findSnap(res);
+    if (!snap){ try { raw = JSON.stringify(res).slice(0, 400); } catch (e) { raw = String(res).slice(0, 400); } throw {code:'parse'}; }
+    applySnapshot(snap); render();
+    setLive('Live from the Polidex database. Updated ' + esc(LIVE.at) + '. ' + LIVE.rolls + ' mapped roll calls, ' + LIVE.members + ' members.', true, 'Refresh');
+  } catch (e){ liveError(e, raw); }
+  finally { liveBusy = false; }
+}
+
+function currentView(){ const h = (location.hash || '').slice(1); return views[h] ? h : 'overview'; }
+function render(){
+  const v = currentView();
+  document.querySelectorAll('nav.tabs a').forEach(a => { if (a.dataset.tab === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  document.getElementById('app').innerHTML = views[v]();
+}
+function onClick(ev){
+  const t = ev.target.closest('[data-open],[data-state],button'); if (!t) return;
+  if (t.dataset.state){ state.filter = state.filter === t.dataset.state ? 'All' : t.dataset.state; render(); return; }
+  const list = quizList(), st = list[state.idx];
+  if (t.dataset.open !== undefined){ state.sel = t.dataset.open || null; if (currentView() !== 'profiles'){ location.hash = 'profiles'; } else render(); window.scrollTo(0, 0); return; }
+  if (t.id === 'live-retry'){ loadLive(true); return; }
+  if (t.dataset.filter){ state.filter = t.dataset.filter; render(); return; }
+  if (t.dataset.mode){ state.mode = t.dataset.mode; state.idx = 0; }
+  else if (t.dataset.ans !== undefined){ state.ans[st.id] = t.dataset.ans === 'ns' ? 'ns' : Number(t.dataset.ans); if (!state.imp[st.id]) state.imp[st.id] = 2; }
+  else if (t.dataset.imp){ state.imp[st.id] = Number(t.dataset.imp); }
+  else if (t.dataset.step){ state.idx = Math.max(0, Math.min(list.length - 1, state.idx + Number(t.dataset.step))); }
+  else if (t.id === 'reset'){ state.ans = {}; state.imp = {}; state.idx = 0; }
+  else return;
+  save(); render();
+}
+if (typeof document !== 'undefined'){
+  document.addEventListener('click', onClick);
+  document.addEventListener('keydown', ev => { if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches && ev.target.matches('g[data-state]')){ ev.preventDefault(); onClick(ev); } });
+  document.addEventListener('change', ev => { if (ev.target.id === 'state-select'){ state.filter = ev.target.value; render(); } });
+  document.addEventListener('input', ev => { if (ev.target.id === 'q'){ state.q = ev.target.value; const el = document.getElementById('plist'); if (el) el.innerHTML = listHTML(); } });
+  window.addEventListener('hashchange', () => { if (currentView() !== 'profiles') state.sel = null; render(); window.scrollTo(0, 0); });
+  render();
+  loadLive(false);
+}
+if (typeof module !== 'undefined') module.exports = {ST, PROFILES, axisScores, band, fband, matchScore, profileReadings, findSnap, applySnapshot, fmtBill, state, getLive:() => LIVE};
+</script>
+</body>
+</html>
