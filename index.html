@@ -132,6 +132,7 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
 .tile.on rect{fill:var(--blue)}
 .tile.on text{fill:var(--on-blue)}
 .tile:focus-visible rect{stroke:var(--accent);stroke-width:2}
+button.tag{cursor:pointer;color:var(--ink)}
 button.terr[aria-pressed="true"]{background:var(--blue);color:var(--on-blue)}
 /* ===== v1.0 app shell and visual refresh ===== */
 :root{--bg:#FFFFFF;--surface:#FFFFFF;--soft:#F5F7FA;--ink:#0F1419;--muted:#5B6672;--line:#E7ECF0;--accent:#D5263B;--accent-soft:#FDECEF;--blue:#14336B;--blue-soft:#EAF0FA;--ok:#129B6A;
@@ -496,7 +497,7 @@ function mkProfile(id, name, pa, st, ch, dist, evidence){
     : TERR[st] ? (st === 'PR' ? 'Resident Commissioner, ' : 'Delegate, ') + SN[st]
     : 'U.S. Representative, ' + SN[st] + (String(dist) === '0' ? ' at-large' : ' District ' + dist);
   return {id, name, ini:(parts[0][0] + parts[parts.length - 1][0]).toUpperCase(), st, pa, ch, office, party:PN[pa] || pa,
-    since:'Votes come from official House and Senate roll-call records.', level:'Federal', preliminary:true, evidence};
+    since:'Votes come from official House and Senate roll-call records.', level:'Federal', preliminary:true, evidence, dist:String(dist === null || dist === undefined ? '' : dist)};
 }
 function loadEmbedded(){
   PROFILES.length = 0; SPLIT = {};
@@ -518,7 +519,7 @@ const state = {ans:{}, imp:{}, mode:'quick', idx:0, sel:null, filter:'All', q:''
 try { const s = JSON.parse(localStorage.getItem('polidex-v01') || 'null'); if (s) Object.assign(state, s, {sel:null, filter:'All', cz:{k:1, x:0, y:0}, pick:null}); } catch (e) {}
 function save(){
   state.ts = Date.now();
-  try { localStorage.setItem('polidex-v01', JSON.stringify({ans:state.ans, imp:state.imp, mode:state.mode, idx:state.idx, ts:state.ts})); } catch (e) {}
+  try { localStorage.setItem('polidex-v01', JSON.stringify({ans:state.ans, imp:state.imp, mode:state.mode, idx:state.idx, ts:state.ts, home:state.home || null})); } catch (e) {}
   if (SB && USER){ clearTimeout(syncTimer); syncTimer = setTimeout(pushAnswers, 1500); }
 }
 const quizList = () => state.mode === 'quick' ? ST.filter(s => s.quick) : ST;
@@ -752,7 +753,7 @@ const views = {
   },
   results(){
     const r = userReadings(), n = Object.keys(r).length;
-    if (!n) return '<div class="stack"><div class="card stack"><h2>No answers yet</h2><p class="muted">Answer a few statements and your compass position and matches will appear here.</p><div><a class="btn" href="#quiz" style="text-decoration:none">Take the quiz</a></div></div>' + accountCard() + youCard() + '</div>';
+    if (!n) return '<div class="stack"><div class="card stack"><h2>No answers yet</h2><p class="muted">Answer a few statements and your compass position and matches will appear here.</p><div><a class="btn" href="#quiz" style="text-decoration:none">Take the quiz</a></div></div>' + homeCard() + accountCard() + youCard() + '</div>';
     const u = axisScores(r);
     const ms = PROFILES.map(p => ({p, m:matchScore(state.ans, state.imp, p.r.combined)})).sort((a, b) => (b.m.pct === null ? -1 : b.m.pct) - (a.m.pct === null ? -1 : a.m.pct));
     const fdots = (state.filter === 'All' ? [] : shown()).filter(p => p.ax.F.n).map(p => '<i style="left:' + ((p.ax.F.v + 100) / 2) + '%" title="' + p.name + '"></i>').join('') + (u.F.n ? '<i class="you" style="left:' + ((u.F.v + 100) / 2) + '%" title="You"></i>' : '');
@@ -760,7 +761,7 @@ const views = {
       '<div class="stack-s">' + axisLine('Economic', u.E, null, band) + axisLine('Social', u.S, null, band) + '</div></div>' +
       '<div class="card stack-s"><h2>Foreign policy</h2>' + axisLine('Restraint to engagement', u.F, null, fband) + '<div class="fbar">' + fdots + '</div><div class="ends"><span>Restraint</span><span>Engagement</span></div><p class="small muted">Red is you. Pick a state above to add its members as blue dots. Scale runs from -100 to +100.</p></div>' +
       '<div class="stack-s"><h2>Closest matches</h2><p class="muted small">Compared only on statements you both have a reading for, weighted by what you marked as important. Showing the 20 closest.</p><div class="plist">' + ms.slice(0, 20).map(x => profileButton(x.p, x.m)).join('') + '</div></div>' +
-      accountCard() + youCard() + '<div class="row">' + (u.E.n && u.S.n ? '<button class="btn" id="share-card">Share my compass</button>' : '') + '<a class="btn ghost" href="#quiz" style="text-decoration:none">Keep answering</a><button class="btn ghost" id="reset">Clear my answers</button></div></div>';
+      homeCard() + accountCard() + youCard() + '<div class="row">' + (u.E.n && u.S.n ? '<button class="btn" id="share-card">Share my compass</button>' : '') + '<a class="btn ghost" href="#quiz" style="text-decoration:none">Keep answering</a><button class="btn ghost" id="reset">Clear my answers</button></div></div>';
   },
   profiles(){
     const p = PROFILES.find(x => x.id === state.sel);
@@ -793,13 +794,14 @@ const views = {
       '<div>' + ((FEED || []).length ? FEED.map(p => postHTML(p, false)).join('') : (SB ? '<p class="muted" style="padding:24px 0;text-align:center">No posts yet. Be the first.</p>' : '')) + '</div></div>';
   },
   votes(){
+    if (SB && LIVE && POLLS === null){ POLLS = {}; loadPolls(); }
     const list = ROLLS.slice().sort((a, b) => (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0)), pl = {D:'Democrats', R:'Republicans', I:'Independents'};
     return '<div class="stack"><div class="stack-s"><h1>Votes</h1><p class="muted">The ' + list.length + ' roll calls that feed the compass so far, newest first. Party counts cover current members only, so they can differ from the official tally.</p></div>' +
       list.map(rc => {
         const sp = SPLIT[rc.id] || {};
         return '<div class="card stack-s"><div class="spread"><span class="pill">' + (rc.ch === 'H' ? 'House' : 'Senate') + '</span><span class="mono muted small">' + esc(rc.date) + '</span></div><h2 style="font-size:17px">' + esc(rc.title) + '</h2>' + (rc.sum ? '<p>' + esc(rc.sum) + '</p>' : '') +
           '<p class="small muted"><span class="mono">' + esc(rc.bill) + '</span> &middot; official tally ' + esc(rc.tally) + ' &middot; <a href="' + esc(rc.src[1]) + '">' + esc(rc.src[0]) + '</a></p>' +
-          '<div class="tablewrap"><table><tr><th>Current members</th><th>Yea</th><th>Nay</th></tr>' + ['D','R','I'].filter(k => sp[k]).map(k => '<tr><td>' + pl[k] + '</td><td class="num mono">' + sp[k].Y + '</td><td class="num mono">' + sp[k].N + '</td></tr>').join('') + '</table></div>' +
+          '<div class="tablewrap"><table><tr><th>Current members</th><th>Yea</th><th>Nay</th></tr>' + ['D','R','I'].filter(k => sp[k]).map(k => '<tr><td>' + pl[k] + '</td><td class="num mono">' + sp[k].Y + '</td><td class="num mono">' + sp[k].N + '</td></tr>').join('') + '</table></div>' + delegationHTML(rc) + pollHTML(rc) +
           rc.map.filter(m => BYID[m[0]]).map(m => '<div class="vote"><b>A Yea counts as ' + (m[1] > 0 ? 'agreement' : 'disagreement') + ' (' + (m[1] > 0 ? '+' : '') + m[1] + ' of 3)</b> with: ' + BYID[m[0]].text + '<br><span class="muted">' + esc(m[2] || '') + '</span></div>').join('') + '</div>';
       }).join('') + '</div>';
   },
@@ -963,6 +965,49 @@ function postHTML(p, reply){
     (reply ? '' : '<button data-thread="' + p.id + '">' + (p.replies ? p.replies + (p.replies === 1 ? ' reply' : ' replies') : 'Reply') + '</button>') + (mine ? '<button data-del="' + p.id + '">Delete</button>' : '') + '</div>' +
     (!reply && OPEN[p.id] ? '<div>' + (REPLIES[p.id] || []).map(x => postHTML(x, true)).join('') + (canPost() ? '<div class="row" style="margin-top:8px"><input type="text" id="reply-' + p.id + '" maxlength="500" placeholder="Write a reply" aria-label="Write a reply"><button class="btn" data-replysend="' + p.id + '" style="padding:8px 14px">Reply</button></div>' : '') + '</div>' : '') + '</div></div>';
 }
+let homeMsg = '', POLLS = null, MYPOLL = {};
+function homeMembers(){
+  const h = state.home; if (!h) return [];
+  return PROFILES.filter(p => !p.fictional && p.st === h.st && (p.ch === 'S' || TERR[p.st] || Number(p.dist) === Number(h.dist))).sort((a, b) => (a.ch === 'S' ? 0 : 1) - (b.ch === 'S' ? 0 : 1));
+}
+function homeCard(){
+  const h = state.home, head = '<div class="card stack-s"><h2>Your representatives</h2>';
+  if (h){ const l = homeMembers(); return head + '<p class="small muted">' + SN[h.st] + (Number(h.dist) ? ', District ' + h.dist : '') + '</p>' + (l.length ? '<div class="plist">' + l.map(p => profileButton(p)).join('') + '</div>' : '<p class="small muted">No current members found for this district.</p>') + '<div><button class="btn ghost" id="home-clear" style="padding:6px 14px;font-size:13px">Change address</button></div></div>'; }
+  if (!SB) return head + '<p class="muted small">The address lookup works on the public Polidex site.</p></div>';
+  return head + '<p class="muted small">Enter your home address to find your two senators and your House member. The address is used once for the lookup and is not saved.</p><div class="row"><input type="text" id="home-addr" autocomplete="street-address" placeholder="Street, city, state" aria-label="Home address"><button class="btn" id="home-find">Find</button></div>' + (homeMsg ? '<p class="small" role="status">' + esc(homeMsg) + '</p>' : '') + '</div>';
+}
+async function findHome(){
+  const el = document.getElementById('home-addr'), a = ((el && el.value) || '').trim(); if (a.length < 6){ homeMsg = 'Enter a full street address with city and state.'; render(); return; }
+  homeMsg = 'Looking up...'; render();
+  const r = await SB.rpc('find_district', {p_address:a}), d = r.data;
+  if (r.error || !d || d.error || !SN[d.state]){ homeMsg = (d && d.error) || 'The lookup failed. Try again.'; render(); return; }
+  state.home = {st:d.state, dist:d.district}; homeMsg = ''; save();
+  if (USER && PROFILE) SB.from('profiles').update({state:d.state, district:d.district}).eq('user_id', USER.id).then(() => {});
+  render();
+}
+function delegationHTML(rc){
+  const l = homeMembers().filter(p => p.ch === rc.ch); if (!l.length) return '';
+  return '<div class="stack-s"><h3>Your ' + (rc.ch === 'S' ? 'senators' : 'representative') + '</h3><div class="tags">' + l.map(p => { const e = p.evidence.find(x => x.rid === rc.id); return '<button class="tag" data-open="' + p.id + '">' + esc(p.name) + ': <b>' + (e ? e.cast : 'no vote recorded') + '</b></button>'; }).join('') + '</div></div>';
+}
+async function loadPolls(){
+  if (!SB) return;
+  const r = await SB.rpc('poll_counts'); POLLS = {}; (r.data || []).forEach(x => { POLLS[x[0]] = {y:x[1], n:x[2]}; });
+  if (USER){ const m = await SB.from('poll_votes').select('roll_call_id,choice').eq('user_id', USER.id); MYPOLL = {}; (m.data || []).forEach(x => { MYPOLL[x.roll_call_id] = x.choice; }); }
+  if (currentView() === 'votes') render();
+}
+function pollHTML(rc){
+  if (!SB || !LIVE) return '';
+  const c = (POLLS && POLLS[rc.id]) || {y:0, n:0}, t = c.y + c.n, mine = MYPOLL[rc.id];
+  return '<div class="stack-s"><h3>How would you have voted?</h3><div class="row"><button class="btn' + (mine === 'Yea' ? '' : ' ghost') + '" data-poll="' + rc.id + '|Yea" aria-pressed="' + (mine === 'Yea') + '" style="padding:7px 18px">Yea</button><button class="btn' + (mine === 'Nay' ? '' : ' ghost') + '" data-poll="' + rc.id + '|Nay" aria-pressed="' + (mine === 'Nay') + '" style="padding:7px 18px">Nay</button>' +
+    '<span class="small muted">' + (t ? 'Polidex users: ' + Math.round(100 * c.y / t) + '% Yea, ' + Math.round(100 * c.n / t) + '% Nay (' + t + ' vote' + (t === 1 ? '' : 's') + ')' : 'No votes yet') + '</span></div></div>';
+}
+async function votePoll(rid, ch){
+  if (!USER){ authMsg = 'Sign in to vote in polls.'; location.hash = 'results'; return; }
+  const cur = MYPOLL[rid], c = POLLS[rid] = (POLLS && POLLS[rid]) || {y:0, n:0};
+  if (cur === ch){ const r = await SB.from('poll_votes').delete().eq('roll_call_id', rid).eq('user_id', USER.id); if (r.error) return; delete MYPOLL[rid]; c[ch === 'Yea' ? 'y' : 'n']--; }
+  else { const r = await SB.from('poll_votes').upsert({roll_call_id:rid, user_id:USER.id, choice:ch}); if (r.error) return; if (cur) c[cur === 'Yea' ? 'y' : 'n']--; c[ch === 'Yea' ? 'y' : 'n']++; MYPOLL[rid] = ch; }
+  render();
+}
 function followingHTML(){
   if (!FOLLOWS.size) return '';
   const items = [];
@@ -1051,7 +1096,7 @@ async function pullAnswers(){
   if (d && d.answers && Object.keys(d.answers).length && (!localN || Date.parse(d.updated_at) > (state.ts || 0))){
     state.ans = d.answers; state.imp = d.importance || {}; if (d.mode) state.mode = d.mode; state.idx = 0;
     state.ts = Date.parse(d.updated_at);
-    try { localStorage.setItem('polidex-v01', JSON.stringify({ans:state.ans, imp:state.imp, mode:state.mode, idx:state.idx, ts:state.ts})); } catch (e) {}
+    try { localStorage.setItem('polidex-v01', JSON.stringify({ans:state.ans, imp:state.imp, mode:state.mode, idx:state.idx, ts:state.ts, home:state.home || null})); } catch (e) {}
     authMsg = 'Loaded your saved answers.';
   } else if (localN) await pushAnswers();
 }
@@ -1120,6 +1165,9 @@ function onClick(ev){
   if (t.dataset.pick !== undefined){ const ids = PICK[t.dataset.pick]; if (ids && ids.length === 1){ state.sel = ids[0]; state.pick = null; location.hash = 'profiles'; render(); window.scrollTo(0, 0); return; } state.pick = state.pick === t.dataset.pick ? null : (t.dataset.pick || null); render(); return; }
   if (t.dataset.zoom){ const z = state.cz; if (t.dataset.zoom === 'in') z.k = Math.min(16, z.k * 1.6); else if (t.dataset.zoom === 'out'){ z.k = Math.max(1, z.k / 1.6); if (z.k < 1.05){ z.k = 1; z.x = 0; z.y = 0; } } else state.cz = {k:1, x:0, y:0}; render(); return; }
   if (t.id === 'share-card'){ shareCard(); return; }
+  if (t.id === 'home-find'){ findHome(); return; }
+  if (t.id === 'home-clear'){ state.home = null; homeMsg = ''; save(); render(); return; }
+  if (t.dataset.poll){ const a = t.dataset.poll.split('|'); votePoll(a[0], a[1]); return; }
   if (t.id === 'post-send'){ sendPost(null); return; }
   if (t.id === 'feed-refresh'){ loadFeed(); return; }
   if (t.id === 'handle-save'){ saveHandle(); return; }
@@ -1149,7 +1197,7 @@ if (typeof document !== 'undefined'){
   document.addEventListener('keydown', ev => { if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches && ev.target.matches('g[data-state]')){ ev.preventDefault(); onClick(ev); } });
   document.addEventListener('change', ev => { if (ev.target.id === 'state-select'){ state.filter = ev.target.value; state.cz = {k:1, x:0, y:0}; state.pick = null; render(); } });
   document.addEventListener('input', ev => { if (ev.target.id === 'cmp-q'){ state.cq = ev.target.value; const el = document.getElementById('cmp-list'), cp = PROFILES.find(x => x.id === state.sel); if (el && cp) el.innerHTML = cmpList(cp); return; } if (ev.target.id === 'q'){ state.q = ev.target.value; const el = document.getElementById('plist'); if (el) el.innerHTML = listHTML(); } });
-  window.addEventListener('hashchange', () => { if (currentView() !== 'profiles') state.sel = null; if (currentView() === 'feed' && SB) loadFeed(); render(); window.scrollTo(0, 0); });
+  window.addEventListener('hashchange', () => { if (currentView() !== 'profiles') state.sel = null; if (currentView() === 'feed' && SB) loadFeed(); if (currentView() === 'votes' && SB && LIVE) loadPolls(); render(); window.scrollTo(0, 0); });
   resolveOpen();
   render();
   loadLive(false);
