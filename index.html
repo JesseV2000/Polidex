@@ -478,7 +478,7 @@ const SN = {AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',
 const TERR = {AS:1, DC:1, GU:1, MP:1, VI:1, PR:1};
 const PN = {D:'Democratic', R:'Republican', I:'Independent'};
 const SAID = {'Jack Reed':senSaid(SRC.reedAwb), 'Sheldon Whitehouse':senSaid(SRC.whAwb), 'Gabe Amo':amoSaid, 'Seth Magaziner':magSaid};
-let ROLLS = [], SPLIT = {}, MONEY = {}, EMP = {}, PACS = {}, PACG = {};
+let ROLLS = [], SPLIT = {}, MONEY = {}, EMP = {}, PACS = {}, PACG = {}, OUTS = {}, STATS = {};
 function countVote(rid, pa, c){ const s = SPLIT[rid] = SPLIT[rid] || {}, k = pa === 'D' || pa === 'R' ? pa : 'I'; (s[k] = s[k] || {Y:0, N:0})[c]++; }
 function build(ch, casts, name, pa){
   const ev = [], ex = EXCLUDE[name] || {};
@@ -666,13 +666,20 @@ function moneyHTML(p){
   return '<div class="card stack-s"><h2>Money</h2><p class="muted small">Campaign committee totals for the ' + (m.cycle - 1) + ' to ' + m.cycle + ' election cycle, reported through ' + esc(m.thru || 'the latest filing') + '.</p>' +
     '<div class="scores"><div class="score"><b>' + usd(m.rec) + '</b><span>Raised</span></div><div class="score"><b>' + pct + '%</b><span>From PACs and other committees (' + usd(m.pac) + ')</span></div><div class="score"><b>' + usd(m.cash) + '</b><span>Cash on hand</span></div></div>' +
     '<p class="small">Itemized donations from individuals (over $200 each): <b>' + usd(m.ind) + '</b></p>' + donorHTML(p) +
-    '<p class="small muted">Source: <a href="https://www.fec.gov/data/candidate/' + esc(m.cid) + '/?cycle=' + m.cycle + '">Federal Election Commission filings</a>. Stock trades and outside spending are not loaded yet.</p></div>';
+    '<p class="small muted">Source: <a href="https://www.fec.gov/data/candidate/' + esc(m.cid) + '/?cycle=' + m.cycle + '">Federal Election Commission filings</a>. Stock trades are not loaded yet.</p></div>';
 }
 const tcase = t => t.toLowerCase().replace(/(^|[\s\-\/&(.])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+function recordHTML(p){
+  const t = STATS[p.id]; if (!t || p.fictional) return '';
+  const pc = v => v === null || v === undefined ? 'n/a' : Math.round(Number(v) * 100) + '%';
+  return '<div class="card stack-s"><h2>Voting record</h2><div class="scores"><div class="score"><b>' + pc(t.pl) + '</b><span>Votes with own party</span></div><div class="score"><b>' + pc(t.cross) + '</b><span>Crosses party lines</span></div><div class="score"><b>' + pc(t.att) + '</b><span>Attendance</span></div></div>' +
+    '<p class="small muted">Since January ' + t.since + ', across ' + t.votes + ' recorded votes. Crossing party lines is measured on the ' + (t.split || 0) + ' votes where most Democrats and most Republicans voted opposite ways.' + (p.pa === 'I' ? ' Party figures are not calculated for independents.' : '') + '</p></div>';
+}
 function donorHTML(p){
   const e = EMP[p.id] || [], g = (PACG[p.id] || []).slice().sort((a, b) => b[1] - a[1]);
   return (e.length ? '<div class="stack-s"><h3>Where their donors work</h3>' + e.map(x => '<div class="spread small"><span>' + esc(tcase(x[0])) + '</span><span class="mono">' + usd(Number(x[1]) || 0) + '</span></div>').join('') + '<p class="small muted">Employers named by individual donors who gave over $200. The employer itself did not give this money.</p></div>' : '') +
-    (Object.keys(PACS).length ? '<div class="stack-s"><h3>Selected PACs</h3>' + (g.length ? '<div class="tags">' + g.map(x => '<span class="tag" title="' + esc(PACS[x[0]].name) + '">' + esc(PACS[x[0]].short) + ' ' + usd(x[1]) + '</span>').join('') + '</div>' : '<p class="small muted">No direct contributions on file this cycle from the PACs we track.</p>') + '<p class="small muted">Direct PAC contributions only, from a fixed list: ' + Object.keys(PACS).map(k => esc(PACS[k].short)).join(', ') + '. Donations routed through a PAC by individuals and outside ad spending are not counted, so trackers that include those will show larger figures.</p></div>' : '');
+    ((OUTS[p.id] || []).length ? '<div class="stack-s"><h3>Outside spending</h3>' + OUTS[p.id].map(x => '<div class="spread small"><span>' + esc(tcase(x[0])) + ' <span class="muted">(' + (x[1] === 'S' ? 'supporting' : 'opposing') + ')</span></span><span class="mono">' + usd(Number(x[2]) || 0) + '</span></div>').join('') + '<p class="small muted">Ads and other spending by outside groups for or against this member. By law it is not coordinated with the campaign.</p></div>' : '') +
+    (Object.keys(PACS).length ? '<div class="stack-s"><h3>Selected PACs</h3>' + (g.length ? '<div class="tags">' + g.map(x => '<span class="tag" title="' + esc(PACS[x[0]].name) + '">' + esc(PACS[x[0]].short) + ' ' + usd(x[1]) + '</span>').join('') + '</div>' : '<p class="small muted">No direct contributions on file this cycle from the PACs we track.</p>') + '<p class="small muted">Direct PAC contributions only, from a fixed list: ' + Object.keys(PACS).map(k => esc(PACS[k].short)).join(', ') + '. Donations that individuals route through a PAC are not counted, so trackers that include those will show larger figures.</p></div>' : '');
 }
 const posWord = v => v >= 1.5 ? 'For' : v >= .5 ? 'Leans for' : v > -.5 ? 'Mixed' : v > -1.5 ? 'Leans against' : 'Against';
 function cmpList(p){
@@ -761,7 +768,7 @@ const views = {
       '<p class="small">' + p.since + '</p><div class="row">' + (p.fictional ? '<span class="pill fic">Fictional example</span>' : '<span class="pill accent">Elected official</span>') + (flags ? '<span class="pill flag">' + flags + ' Said vs. Voted flag' + (flags === 1 ? '' : 's') + '</span>' : '') + (m.pct !== null ? '<span class="pill">Match with you: ' + m.pct + '%</span>' : '') + followBtn(p) + '</div>' +
       scoreTiles(p) + stanceTags(p) + issueBars(p) +
       (p.preliminary ? '<p class="note">Preliminary. Most statements here rest on one or two pieces of evidence. The framework asks for at least two per statement, across at least five statements on an axis, before a label is shown.</p>' : '') + '</div>' +
-      moneyHTML(p) + compareCard(p) +
+      recordHTML(p) + moneyHTML(p) + compareCard(p) +
       '<div class="card"><h2 style="margin-bottom:4px">Positions and evidence</h2><p class="muted small">' + ids.length + ' of 62 statements have evidence so far.</p>' + ev + '</div></div>';
   },
   feed(){
@@ -847,6 +854,8 @@ function applySnapshot(snap){
   ROLLS = rolls.H.concat(rolls.S);
   MONEY = {}; (snap.money || []).forEach(r => { MONEY[r[0]] = {cycle:r[1], cid:r[2], rec:Number(r[3]) || 0, ind:Number(r[4]) || 0, pac:Number(r[5]) || 0, cash:Number(r[6]) || 0, thru:r[7]}; });
   EMP = {}; (snap.emp || []).forEach(r => { EMP[r[0]] = r[1] || []; });
+  OUTS = {}; (snap.outside || []).forEach(r => { OUTS[r[0]] = r[1] || []; });
+  STATS = {}; (snap.stats || []).forEach(r => { STATS[r[0]] = {since:r[1], votes:r[2], pl:r[3], split:r[4], cross:r[5], att:r[6]}; });
   PACS = {}; (snap.pacs || []).forEach(r => { PACS[r[0]] = {short:r[1], name:r[2]}; });
   PACG = {}; (snap.pacg || []).forEach(r => { if (PACS[r[1]]) (PACG[r[0]] = PACG[r[0]] || []).push([r[1], Number(r[2]) || 0]); });
   LIVE = {at:snap.at || 'just now', rolls:snap.rolls.length, members:out.length};
