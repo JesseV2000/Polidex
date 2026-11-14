@@ -478,7 +478,7 @@ const SN = {AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',
 const TERR = {AS:1, DC:1, GU:1, MP:1, VI:1, PR:1};
 const PN = {D:'Democratic', R:'Republican', I:'Independent'};
 const SAID = {'Jack Reed':senSaid(SRC.reedAwb), 'Sheldon Whitehouse':senSaid(SRC.whAwb), 'Gabe Amo':amoSaid, 'Seth Magaziner':magSaid};
-let ROLLS = [], SPLIT = {}, MONEY = {}, EMP = {}, PACS = {}, PACG = {}, OUTS = {}, STATS = {};
+let ROLLS = [], SPLIT = {}, MONEY = {}, EMP = {}, PACS = {}, PACG = {}, OUTS = {}, STATS = {}, TRADES = {}, TDET = {};
 function countVote(rid, pa, c){ const s = SPLIT[rid] = SPLIT[rid] || {}, k = pa === 'D' || pa === 'R' ? pa : 'I'; (s[k] = s[k] || {Y:0, N:0})[c]++; }
 function build(ch, casts, name, pa){
   const ev = [], ex = EXCLUDE[name] || {};
@@ -669,6 +669,22 @@ function moneyHTML(p){
     '<p class="small muted">Source: <a href="https://www.fec.gov/data/candidate/' + esc(m.cid) + '/?cycle=' + m.cycle + '">Federal Election Commission filings</a>. Stock trades are not loaded yet.</p></div>';
 }
 const tcase = t => t.toLowerCase().replace(/(^|[\s\-\/&(.])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+const dfmt = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}) : '';
+function tradesHTML(p){
+  if (p.fictional || !LIVE) return '';
+  const t = TRADES[p.id], head = '<div class="card stack-s"><h2>Stock trades</h2>';
+  if (!t) return head + '<p class="muted small">No trades on file for this member in the period loaded so far.</p></div>';
+  if (TDET[p.id] === undefined && SB){
+    TDET[p.id] = null;
+    SB.from('trades').select('ticker,asset,type,amount_range,transaction_date,disclosure_date').eq('member_id', p.id).order('transaction_date', {ascending:false}).limit(30)
+      .then(r => { TDET[p.id] = r.data || []; if (state.sel === p.id && currentView() === 'profiles') render(); });
+  }
+  const d = TDET[p.id];
+  return head + '<p class="small"><b>' + t.n + '</b> trade' + (t.n === 1 ? '' : 's') + ' disclosed, ' + esc(t.first) + ' through ' + esc(t.last) + '.</p>' +
+    (d ? d.map(x => '<div class="spread small" style="align-items:flex-start"><span><b>' + (x.type === 'purchase' ? 'Bought' : x.type === 'sale' ? 'Sold' : 'Exchanged') + '</b> ' + esc(x.ticker || String(x.asset || '').slice(0, 44)) + '<br><span class="muted">' + dfmt(x.transaction_date) + ', disclosed ' + dfmt(x.disclosure_date) + '</span></span><span class="mono">' + esc(x.amount_range || '') + '</span></div>').join('') + (t.n > d.length ? '<p class="small muted">Showing the ' + d.length + ' most recent.</p>' : '')
+       : '<p class="small muted">' + (SB ? 'Loading trades...' : 'The trade list shows on the public Polidex site.') + '</p>') +
+    '<p class="small muted">Members report trades in dollar ranges, and a filing can cover a spouse or dependent child. Compiled from official House and Senate disclosures by Bargo. Older trades are still being added.</p></div>';
+}
 function recordHTML(p){
   const t = STATS[p.id]; if (!t || p.fictional) return '';
   const pc = v => v === null || v === undefined ? 'n/a' : Math.round(Number(v) * 100) + '%';
@@ -744,7 +760,7 @@ const views = {
       '<div class="stack-s">' + axisLine('Economic', u.E, null, band) + axisLine('Social', u.S, null, band) + '</div></div>' +
       '<div class="card stack-s"><h2>Foreign policy</h2>' + axisLine('Restraint to engagement', u.F, null, fband) + '<div class="fbar">' + fdots + '</div><div class="ends"><span>Restraint</span><span>Engagement</span></div><p class="small muted">Red is you. Pick a state above to add its members as blue dots. Scale runs from -100 to +100.</p></div>' +
       '<div class="stack-s"><h2>Closest matches</h2><p class="muted small">Compared only on statements you both have a reading for, weighted by what you marked as important. Showing the 20 closest.</p><div class="plist">' + ms.slice(0, 20).map(x => profileButton(x.p, x.m)).join('') + '</div></div>' +
-      accountCard() + youCard() + '<div class="row"><a class="btn ghost" href="#quiz" style="text-decoration:none">Keep answering</a><button class="btn ghost" id="reset">Clear my answers</button></div></div>';
+      accountCard() + youCard() + '<div class="row">' + (u.E.n && u.S.n ? '<button class="btn" id="share-card">Share my compass</button>' : '') + '<a class="btn ghost" href="#quiz" style="text-decoration:none">Keep answering</a><button class="btn ghost" id="reset">Clear my answers</button></div></div>';
   },
   profiles(){
     const p = PROFILES.find(x => x.id === state.sel);
@@ -768,12 +784,12 @@ const views = {
       '<p class="small">' + p.since + '</p><div class="row">' + (p.fictional ? '<span class="pill fic">Fictional example</span>' : '<span class="pill accent">Elected official</span>') + (flags ? '<span class="pill flag">' + flags + ' Said vs. Voted flag' + (flags === 1 ? '' : 's') + '</span>' : '') + (m.pct !== null ? '<span class="pill">Match with you: ' + m.pct + '%</span>' : '') + followBtn(p) + '</div>' +
       scoreTiles(p) + stanceTags(p) + issueBars(p) +
       (p.preliminary ? '<p class="note">Preliminary. Most statements here rest on one or two pieces of evidence. The framework asks for at least two per statement, across at least five statements on an axis, before a label is shown.</p>' : '') + '</div>' +
-      recordHTML(p) + moneyHTML(p) + compareCard(p) +
+      recordHTML(p) + moneyHTML(p) + tradesHTML(p) + compareCard(p) +
       '<div class="card"><h2 style="margin-bottom:4px">Positions and evidence</h2><p class="muted small">' + ids.length + ' of 62 statements have evidence so far.</p>' + ev + '</div></div>';
   },
   feed(){
     if (SB && FEED === null){ FEED = []; loadFeed(); }
-    return '<div class="stack"><div class="spread"><h1>Feed</h1>' + (SB ? '<button class="btn ghost" id="feed-refresh" style="padding:6px 14px;font-size:13px">Refresh</button>' : '') + '</div>' + gateHTML() + (feedMsg ? '<p class="small" role="status">' + esc(feedMsg) + '</p>' : '') +
+    return '<div class="stack"><div class="spread"><h1>Feed</h1>' + (SB ? '<button class="btn ghost" id="feed-refresh" style="padding:6px 14px;font-size:13px">Refresh</button>' : '') + '</div>' + gateHTML() + followingHTML() + (feedMsg ? '<p class="small" role="status">' + esc(feedMsg) + '</p>' : '') +
       '<div>' + ((FEED || []).length ? FEED.map(p => postHTML(p, false)).join('') : (SB ? '<p class="muted" style="padding:24px 0;text-align:center">No posts yet. Be the first.</p>' : '')) + '</div></div>';
   },
   votes(){
@@ -845,7 +861,7 @@ function applySnapshot(snap){
     (rolls[m[4]] || []).forEach((rc, i) => {
       const c = casts[i]; if (c !== 'Y' && c !== 'N') return;
       countVote(rc.id, m[2], c);
-      for (const mp of rc.map){ if (!BYID[mp[0]]) continue; ev.push({s:mp[0], k:'vote', a:mex[rc.id] ? null : (c === 'Y' ? mp[1] : -mp[1]), bill:rc.bill, title:rc.title, date:rc.date, tally:rc.tally, cast:c === 'Y' ? 'Yea' : 'Nay', note:mex[rc.id] || mp[2] || '', src:rc.src}); }
+      for (const mp of rc.map){ if (!BYID[mp[0]]) continue; ev.push({s:mp[0], k:'vote', rid:rc.id, a:mex[rc.id] ? null : (c === 'Y' ? mp[1] : -mp[1]), bill:rc.bill, title:rc.title, date:rc.date, tally:rc.tally, cast:c === 'Y' ? 'Yea' : 'Nay', note:mex[rc.id] || mp[2] || '', src:rc.src}); }
     });
     (m[7] || []).forEach(i => { if (defs[i] && BYID[defs[i].s]) ev.push(defs[i]); });
     return mkProfile(m[0], m[1], m[2], m[3], m[4], m[5], ev);
@@ -856,6 +872,7 @@ function applySnapshot(snap){
   EMP = {}; (snap.emp || []).forEach(r => { EMP[r[0]] = r[1] || []; });
   OUTS = {}; (snap.outside || []).forEach(r => { OUTS[r[0]] = r[1] || []; });
   STATS = {}; (snap.stats || []).forEach(r => { STATS[r[0]] = {since:r[1], votes:r[2], pl:r[3], split:r[4], cross:r[5], att:r[6]}; });
+  TRADES = {}; (snap.trades || []).forEach(r => { TRADES[r[0]] = {n:r[1], first:r[2], last:r[3]}; });
   PACS = {}; (snap.pacs || []).forEach(r => { PACS[r[0]] = {short:r[1], name:r[2]}; });
   PACG = {}; (snap.pacg || []).forEach(r => { if (PACS[r[1]]) (PACG[r[0]] = PACG[r[0]] || []).push([r[1], Number(r[2]) || 0]); });
   LIVE = {at:snap.at || 'just now', rolls:snap.rolls.length, members:out.length};
@@ -945,6 +962,36 @@ function postHTML(p, reply){
     '<div class="body">' + esc(p.body) + '</div><div class="acts"><button data-rx="' + p.id + ':1" aria-pressed="' + (rx === 1) + '">Agree ' + p.up + '</button><button data-rx="' + p.id + ':-1" aria-pressed="' + (rx === -1) + '">Disagree ' + p.down + '</button>' +
     (reply ? '' : '<button data-thread="' + p.id + '">' + (p.replies ? p.replies + (p.replies === 1 ? ' reply' : ' replies') : 'Reply') + '</button>') + (mine ? '<button data-del="' + p.id + '">Delete</button>' : '') + '</div>' +
     (!reply && OPEN[p.id] ? '<div>' + (REPLIES[p.id] || []).map(x => postHTML(x, true)).join('') + (canPost() ? '<div class="row" style="margin-top:8px"><input type="text" id="reply-' + p.id + '" maxlength="500" placeholder="Write a reply" aria-label="Write a reply"><button class="btn" data-replysend="' + p.id + '" style="padding:8px 14px">Reply</button></div>' : '') + '</div>' : '') + '</div></div>';
+}
+function followingHTML(){
+  if (!FOLLOWS.size) return '';
+  const items = [];
+  PROFILES.filter(p => FOLLOWS.has(p.id)).forEach(p => { const seen = {}; p.evidence.forEach(e => { if (e.k === 'vote' && e.rid && !seen[e.rid]){ seen[e.rid] = 1; items.push({p, e, t:Date.parse(e.date) || 0}); } }); });
+  if (!items.length) return '';
+  items.sort((a, b) => b.t - a.t);
+  return '<div class="card stack-s"><h2>From members you follow</h2><div class="plist">' + items.slice(0, 8).map(x => '<button class="pitem" data-open="' + x.p.id + '"><span class="avatar">' + x.p.ini + '</span><span><span class="name">' + x.p.name + '</span> voted <b>' + x.e.cast + '</b><br><span class="small">' + esc(x.e.title || x.e.bill) + '</span><br><span class="muted small">' + esc(x.e.date) + '</span></span><span class="muted">&rsaquo;</span></button>').join('') + '</div><p class="small muted">Their most recent votes among those Polidex tracks.</p></div>';
+}
+async function shareCard(){
+  const u = axisScores(userReadings()), c = document.createElement('canvas'); c.width = 1080; c.height = 1080;
+  const g = c.getContext('2d'), F = 'Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif', x0 = 240, y0 = 290, S = 600;
+  g.fillStyle = '#14336B'; g.fillRect(0, 0, 1080, 1080);
+  g.font = '800 68px ' + F; g.fillStyle = '#FFFFFF'; g.fillText('Poli', 80, 130); g.fillStyle = '#FF5C73'; g.fillText('dex', 80 + g.measureText('Poli').width, 130);
+  g.fillStyle = '#FFFFFF'; g.font = '700 44px ' + F; g.fillText('My political compass', 80, 205);
+  g.fillStyle = '#FFFFFF'; g.fillRect(x0, y0, S, S);
+  g.strokeStyle = '#D5DCE8'; g.lineWidth = 2; for (let i = 1; i < 4; i++){ g.beginPath(); g.moveTo(x0 + i * S / 4, y0); g.lineTo(x0 + i * S / 4, y0 + S); g.moveTo(x0, y0 + i * S / 4); g.lineTo(x0 + S, y0 + i * S / 4); g.stroke(); }
+  g.strokeStyle = '#5B6672'; g.lineWidth = 3; g.beginPath(); g.moveTo(x0 + S / 2, y0); g.lineTo(x0 + S / 2, y0 + S); g.moveTo(x0, y0 + S / 2); g.lineTo(x0 + S, y0 + S / 2); g.stroke();
+  g.font = '500 26px ' + F; g.fillStyle = '#5B6672'; g.fillText('Economic left', x0 + 12, y0 + S / 2 - 12); g.textAlign = 'right'; g.fillText('Economic right', x0 + S - 12, y0 + S / 2 - 12);
+  g.textAlign = 'center'; g.fillStyle = '#FFFFFF'; g.font = '500 28px ' + F; g.fillText('Socially conservative', x0 + S / 2, y0 - 16); g.fillText('Socially progressive', x0 + S / 2, y0 + S + 38);
+  const px = x0 + (u.E.v + 100) / 200 * S, py = y0 + (100 - u.S.v) / 200 * S;
+  g.beginPath(); g.arc(px, py, 24, 0, Math.PI * 2); g.fillStyle = '#D5263B'; g.fill(); g.lineWidth = 6; g.strokeStyle = '#FFFFFF'; g.stroke();
+  g.fillStyle = '#FFFFFF'; g.font = '700 36px ' + F; g.fillText('Economic ' + fmt(u.E.v) + ' (' + band(u.E.v) + ')   Social ' + fmt(u.S.v) + ' (' + band(u.S.v) + ')', 540, 1000);
+  g.font = '500 26px ' + F; g.globalAlpha = .8; g.fillText(location.host || 'Polidex', 540, 1045); g.globalAlpha = 1;
+  c.toBlob(async b => {
+    if (!b) return;
+    const f = typeof File === 'function' ? new File([b], 'polidex-compass.png', {type:'image/png'}) : null;
+    if (f && navigator.canShare && navigator.canShare({files:[f]})){ try { await navigator.share({files:[f], title:'My Polidex compass', text:'Where I stand on Polidex'}); } catch (e) {} }
+    else { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'polidex-compass.png'; document.body.appendChild(a); a.click(); a.remove(); }
+  }, 'image/png');
 }
 function gateHTML(){
   if (!SB) return '<div class="card"><p class="muted small">The feed works on the public Polidex site.</p></div>';
@@ -1072,6 +1119,7 @@ function onClick(ev){
   const t = ev.target.closest('[data-pick],[data-open],[data-state],button'); if (!t) return;
   if (t.dataset.pick !== undefined){ const ids = PICK[t.dataset.pick]; if (ids && ids.length === 1){ state.sel = ids[0]; state.pick = null; location.hash = 'profiles'; render(); window.scrollTo(0, 0); return; } state.pick = state.pick === t.dataset.pick ? null : (t.dataset.pick || null); render(); return; }
   if (t.dataset.zoom){ const z = state.cz; if (t.dataset.zoom === 'in') z.k = Math.min(16, z.k * 1.6); else if (t.dataset.zoom === 'out'){ z.k = Math.max(1, z.k / 1.6); if (z.k < 1.05){ z.k = 1; z.x = 0; z.y = 0; } } else state.cz = {k:1, x:0, y:0}; render(); return; }
+  if (t.id === 'share-card'){ shareCard(); return; }
   if (t.id === 'post-send'){ sendPost(null); return; }
   if (t.id === 'feed-refresh'){ loadFeed(); return; }
   if (t.id === 'handle-save'){ saveHandle(); return; }
